@@ -1,25 +1,31 @@
 package org.kveex;
 
+import org.jetbrains.annotations.NotNull;
+import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.util.List;
+import java.io.IOException;
+import java.util.Arrays;
 
 public class ScheduleHandler {
     // TODO: Разделить вывод расписания по подгруппам с опцией выбора выводить так или нет
     //  так же заменять время второй пары в зависимости от корпуса
-    private static final LocalDate today = LocalDate.now();
-    private static final DayOfWeek dayOfWeek = today.getDayOfWeek();
-    private static final List<String> standardSubjectsTime = List.of("8:30 - 10:00", "[10:10 - 10:45 () 11:15 - 12:00]", "12:10 - 13:40", "13:50 - 15:20", "15:30 - 17:00");
-    private static final String alternativeSubjectsTime = "10:10 - 11:40";
-    private static final List<String> saturdaySubjectsTime = List.of("8:00 - 9:10", "9:20 - 10:30", "10:40 - 11:50", "12:00 - 13:10", "13:20 - 14:30");
+    // TODO: Добавить комментарии ко всем методам
+    private static final int GROUP_TIME_COLUMN = 1;
+    private static final int GROUP_SUBJECT_COLUMN = 2;
+    private static final int GROUP_COLUMN_WIDTH = 3;
 
-    public static ScheduleGroup fillSchedule(Document document, String groupName, int subGroupNumber) {
+    private final Document document;
+
+    public ScheduleHandler() throws IOException {
+        this.document = Jsoup.connect("https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html").get();
+    }
+
+    public ScheduleGroup fillSchedule(String groupName, int subGroupNumber) {
         ScheduleGroup scheduleGroup = new ScheduleGroup(groupName);
-        Elements tables = document.select("table");
+        Elements tables = this.document.select("table");
         Element scheduleTable = null;
 
         for (Element table : tables) {
@@ -35,9 +41,6 @@ public class ScheduleHandler {
 
         String[] currentGroups = new String[3];
 
-        List<String> timeList = dayOfWeek != DayOfWeek.SATURDAY ? standardSubjectsTime : saturdaySubjectsTime;
-        int timeCounter = 0;
-
         Elements rows = scheduleTable.select("tr");
 
         for (int rowIndex = 1; rowIndex < rows.size(); rowIndex++) {
@@ -45,7 +48,7 @@ public class ScheduleHandler {
             Elements cells = row.select("td");
 
             for (int groupIndex = 0; groupIndex < 3; groupIndex++) {
-                int cellIndex = groupIndex * 3;
+                int cellIndex = groupIndex * GROUP_COLUMN_WIDTH;
 
                 if (cellIndex >= cells.size()) continue;
 
@@ -56,17 +59,16 @@ public class ScheduleHandler {
 
                 if (currentGroups[groupIndex] != null && currentGroups[groupIndex].contains(groupName)) {
 
-                    if (cellIndex + 2 < cells.size()) {
-                        String time = timeList.get(timeCounter).trim();
-                        String subject = cells.get(cellIndex + 2).text().trim();
+                    if (cellIndex + GROUP_SUBJECT_COLUMN < cells.size()) {
+                        String time = cells.get(cellIndex + GROUP_TIME_COLUMN).text().trim();
+                        String info = cells.get(cellIndex + GROUP_SUBJECT_COLUMN).text().trim();
 
-                        if (subject.equals("-")) subject = "Нет пары";
+                        if (info.equals("-")) info = "Нет пары";
 
-                        if (!time.isEmpty() && !subject.isEmpty()) {
-                            ScheduleItem scheduleItem = new ScheduleItem(time, subject);
-                            scheduleGroup.add(scheduleItem);
+                        if (!time.isEmpty() && !info.isEmpty()) {
+                            ScheduleItem scheduleItem = buildScheduleItem(time, info, subGroupNumber);
+                            if (scheduleItem != null) scheduleGroup.add(scheduleItem);
                         }
-                        timeCounter += 1;
                     }
                 }
             }
@@ -74,24 +76,135 @@ public class ScheduleHandler {
         return scheduleGroup;
     }
 
-    public static void printSchedule(ScheduleGroup scheduleGroup) {
-        StringBuilder scheduleText = new StringBuilder("Расписание для группы ").append(scheduleGroup.getGroupName()).append(":\n");
+    public static void printSchedule(@NotNull ScheduleGroup... scheduleGroups) {
+        printSchedule(true, scheduleGroups);
+    }
 
-        if (!scheduleGroup.isEmpty()) {
-            for (ScheduleItem scheduleItem : scheduleGroup.getScheduleItems()) {
-                String time = scheduleItem.time();
-                String subject = scheduleItem.subject();
+    public static void printSchedule(boolean goodTime, @NotNull ScheduleGroup... scheduleGroups) {
+        for (ScheduleGroup scheduleGroup : scheduleGroups) {
+            StringBuilder scheduleText = new StringBuilder("Расписание для группы ").append(scheduleGroup.groupName()).append(":\n");
 
-                if (subject.equals("-")) subject = "Нет пары";
+            if (!scheduleGroup.isEmpty()) {
+                for (ScheduleItem scheduleItem : scheduleGroup.scheduleItems()) {
+                    String time = goodTime ? scheduleItem.goodTime() : scheduleItem.time();
+                    String subject = scheduleItem.subject();
+                    String teacherName = scheduleItem.teacherName();
+                    String roomNumber = scheduleItem.roomNumber();
 
-                if (!time.isEmpty() && !subject.isEmpty()) {
-                    scheduleText.append(time).append(" | ").append(subject).append("\n");
+                    if (subject.equals("-")) subject = "Нет пары";
+
+                    if (!time.isEmpty() && !subject.isEmpty()) {
+                        scheduleText.append(time).append(" | ").append(subject).append("\n");
+                        scheduleText.append("Учитель: ").append(teacherName).append("\n");
+                        scheduleText.append("Кабинет: ").append(roomNumber).append("\n");
+                    }
+                }
+            } else {
+                scheduleText.append("   Расписания нет");
+            }
+
+            Main.LOGGER.info(scheduleText.toString());
+        }
+    }
+
+    private static ScheduleItem buildScheduleItem(String time, String info, int subGroup) {
+        String[] subjects = info.split(" –");
+        String subjectName = "";
+        StringBuilder teacherName = new StringBuilder();
+        String roomNumber = "";
+
+        for (String subject : subjects) {
+            String[] parts = subject.split(" ");
+            int lastPartIndex = parts.length - 1;
+
+            StringBuilder subjectNameBuilder = new StringBuilder();
+
+            int subGroupIndex = -1;
+            int targetSubGroup = 0;
+            for (String part : parts) {
+                if (part.trim().equals("1п")) {
+                    targetSubGroup = 1;
+                    subGroupIndex = Arrays.asList(parts).indexOf(part);
+                    break;
+                } else if (part.trim().contains("2п")) {
+                    targetSubGroup = 2;
+                    subGroupIndex = Arrays.asList(parts).indexOf(part);
+                    break;
                 }
             }
-        } else {
-            scheduleText.append("   Расписания нет");
+
+            if (targetSubGroup != 0 && targetSubGroup != subGroup && subjects.length == 1) {
+                return null;
+            }
+
+            if (parts[lastPartIndex].contains("библ") || parts[lastPartIndex].matches("\\d+б?а?")) {
+                roomNumber = parts[lastPartIndex];
+            } else {
+                roomNumber = "Не указан";
+            }
+
+            ScheduleItem staticCaseItem = checkForStaticCases(time, subject, roomNumber);
+            if (staticCaseItem != null) {
+                return !staticCaseItem.subject().isEmpty() ? staticCaseItem : null;
+            }
+
+            int subjectNameEndIndex;
+
+            if (subGroupIndex != -1) {
+                teacherName = new StringBuilder(parts[subGroupIndex + 1] + " " + parts[subGroupIndex + 2]);
+                subjectNameEndIndex = subGroupIndex;
+            } else {
+                teacherName = new StringBuilder(parts[lastPartIndex - 2] + " " + parts[lastPartIndex - 1]);
+                subjectNameEndIndex = lastPartIndex - 2;
+            }
+
+            for (int i = 0; i < subjectNameEndIndex; i++) {
+                String part = parts[i];
+                if (!part.equals("1п")) subjectNameBuilder.append(parts[i]).append(" ");
+            }
+
+            subjectName = subjectNameBuilder.toString();
+
+            if (subGroup == 1) break;
+
+            if (teacherName.isEmpty()) teacherName = new StringBuilder("Не указан");
+
+        }
+        return new ScheduleItem(time, subjectName, teacherName.toString(), roomNumber);
+    }
+
+    private static ScheduleItem checkForStaticCases(String time, String subject, String roomNumber) {
+        String caseText = subject.toLowerCase();
+        String caseTime = time.toLowerCase();
+        String[] parts = subject.split(" ");
+        StringBuilder teacherName = new StringBuilder();
+
+        if (caseText.contains("нет пары")) {
+            return new ScheduleItem(time, "", "", roomNumber);
         }
 
-        Main.LOGGER.info(scheduleText.toString());
+        if (caseText.contains("о важном")) {
+            return new ScheduleItem(time, "Разговор о важном", "Не указан", roomNumber);
+        }
+
+        if (caseText.contains("лыжи снежинка")) {
+            String subjectName = parts[0];
+            for (int i = 1; i < parts.length; i++) {
+                if (!parts[i].toLowerCase().contains("лыжи") && !parts[i].toLowerCase().contains("снежинка")) {
+                    teacherName.append(parts[i]).append(" ");
+                }
+            }
+            return new ScheduleItem(time, subjectName, teacherName.toString(), "Снежинка");
+        }
+
+        if (caseTime.contains("пп") || caseTime.contains("уп")) {
+            teacherName = new StringBuilder();
+            for (String part : parts) teacherName.append(part).append(" ");
+
+            return new ScheduleItem(time, "Практика", teacherName.toString(), roomNumber);
+        }
+        return null;
     }
+
+
 }

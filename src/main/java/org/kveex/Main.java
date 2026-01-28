@@ -1,25 +1,24 @@
 package org.kveex;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-
 import java.io.IOException;
 import java.util.*;
 import java.util.logging.Logger;
 
 public class Main {
-
     public static final Logger LOGGER = Logger.getLogger("AKTT_API");
 
     public static void main(String[] args) {
-        Document document = null;
+        ScheduleHandler scheduleHandler;
         try {
-            document = Jsoup.connect("https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html").get();
+            scheduleHandler = new ScheduleHandler();
         } catch (IOException e) {
-            LOGGER.severe("Something not working!");
+            throw new RuntimeException("ScheduleHandler broken!\n" + e);
         }
-        if (document == null) return;
-        ScheduleGroup scheduleGroup = ScheduleHandler.fillSchedule(document, "23-14ИС", 1);
-        ScheduleHandler.printSchedule(scheduleGroup);
+
+        ScheduleGroup scheduleGroup = scheduleHandler.fillSchedule("23-36БУХ", 1);
+        ScheduleGroup scheduleGroup3 = scheduleHandler.fillSchedule("25-40ТМ", 1);
+        ScheduleGroup scheduleGroup1 = scheduleHandler.fillSchedule("25-53СВ", 1);
+        ScheduleGroup scheduleGroup2 = scheduleHandler.fillSchedule("23-14ИС", 1);
+        ScheduleHandler.printSchedule(scheduleGroup, scheduleGroup1, scheduleGroup2, scheduleGroup3);
     }
 }
