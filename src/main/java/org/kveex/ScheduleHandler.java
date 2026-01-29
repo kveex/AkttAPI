@@ -9,10 +9,11 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.util.Arrays;
 
+/**
+ * Класс для работы с расписаниями.
+ * Класс предоставляет методы для создания и получения расписаний
+ */
 public class ScheduleHandler {
-    // TODO: Разделить вывод расписания по подгруппам с опцией выбора выводить так или нет
-    //  так же заменять время второй пары в зависимости от корпуса
-    // TODO: Добавить комментарии ко всем методам
     private static final int GROUP_TIME_COLUMN = 1;
     private static final int GROUP_SUBJECT_COLUMN = 2;
     private static final int GROUP_COLUMN_WIDTH = 3;
@@ -23,7 +24,13 @@ public class ScheduleHandler {
         this.document = Jsoup.connect("https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html").get();
     }
 
-    public ScheduleGroup fillSchedule(String groupName, int subGroupNumber) {
+    /**
+     * Создаёт расписание для указанной группы с учётом подгруппы
+     * @param groupName Имя группы, например "23-14ИС"
+     * @param subGroupNumber Номер подгруппы, может быть 0, для обеих подгрупп и 1 - 2 для конкретных
+     * @return Класс со списком классов предметов, каждый из которых содержит в себе информацию об учебной паре
+     */
+    public ScheduleGroup createSchedule(String groupName, int subGroupNumber) {
         ScheduleGroup scheduleGroup = new ScheduleGroup(groupName);
         Elements tables = this.document.select("table");
         Element scheduleTable = null;
@@ -66,8 +73,8 @@ public class ScheduleHandler {
                         if (info.equals("-")) info = "Нет пары";
 
                         if (!time.isEmpty() && !info.isEmpty()) {
-                            ScheduleItem scheduleItem = buildScheduleItem(time, info, subGroupNumber);
-                            if (scheduleItem != null) scheduleGroup.add(scheduleItem);
+                            ScheduleGroup newScheduleGroup = fillScheduleGroup(groupName, time, info, subGroupNumber);
+                            scheduleGroup.combine(newScheduleGroup);
                         }
                     }
                 }
@@ -76,10 +83,40 @@ public class ScheduleHandler {
         return scheduleGroup;
     }
 
+    /**
+     * Метод для создания временной группы, используется только для комбинации с другим scheduleGroup
+     * @param groupName Имя группы
+     * @param time Время учебной пары
+     * @param info Информация об учебной паре (Название предмета, Преподаватель, кабинет)
+     * @param subGroupNumber Номер группы (1, 2, 0)
+     * @see ScheduleHandler#createSchedule(String, int)
+     * @return Группу с предметом или предметами (в зависимости от subGroupNumber и наличия предметов в info)
+     */
+    private static ScheduleGroup fillScheduleGroup(String groupName, String time, String info, int subGroupNumber) {
+        ScheduleGroup scheduleGroup = new ScheduleGroup(groupName);
+        ScheduleItem scheduleItem;
+        if (subGroupNumber == 0) {
+            for (int i = 1; i <= 2; i++) {
+                scheduleItem = createScheduleItem(time, info, i);
+                if (scheduleItem != null && !scheduleGroup.contains(scheduleItem)) scheduleGroup.add(scheduleItem);
+            }
+        } else {
+            scheduleItem = createScheduleItem(time, info, subGroupNumber);
+            if (scheduleItem != null) scheduleGroup.add(scheduleItem);
+        }
+        return scheduleGroup;
+    }
+
     public static void printSchedule(@NotNull ScheduleGroup... scheduleGroups) {
         printSchedule(true, scheduleGroups);
     }
 
+
+    /**
+     * Выводит в консоль содержимое расписаний в понятном виде
+     * @param goodTime Определяет формат времени (промежуток часов, уроки)
+     * @param scheduleGroups Расписания
+     */
     public static void printSchedule(boolean goodTime, @NotNull ScheduleGroup... scheduleGroups) {
         for (ScheduleGroup scheduleGroup : scheduleGroups) {
             StringBuilder scheduleText = new StringBuilder("Расписание для группы ").append(scheduleGroup.groupName()).append(":\n");
@@ -107,7 +144,14 @@ public class ScheduleHandler {
         }
     }
 
-    private static ScheduleItem buildScheduleItem(String time, String info, int subGroup) {
+    /**
+     * Создаёт Класс с информацией об учебной паре
+     * @param time Уроки в которые проходит учебная пара (можно указать не только уроки)
+     * @param info Информация об учебной паре (Название предмета, Преподаватель, кабинет)
+     * @param subGroup Номер группы (1, 2)
+     * @return Класс с информацией об учебной паре
+     */
+    public static ScheduleItem createScheduleItem(String time, String info, int subGroup) {
         String[] subjects = info.split(" –");
         String subjectName = "";
         StringBuilder teacherName = new StringBuilder();
@@ -173,10 +217,17 @@ public class ScheduleHandler {
         return new ScheduleItem(time, subjectName, teacherName.toString(), roomNumber);
     }
 
-    private static ScheduleItem checkForStaticCases(String time, String subject, String roomNumber) {
-        String caseText = subject.toLowerCase();
+    /**
+     * Проверка на особые случаи, которые не поддаются обычному механизму парсинга
+     * @param time Время проведения учебной пары
+     * @param info Информация об учебной паре (Название предмета, Преподаватель, кабинет)
+     * @param roomNumber Кабинет проведения учебной пары
+     * @return Класс с информацией об особом случае учебной пары
+     */
+    private static ScheduleItem checkForStaticCases(String time, String info, String roomNumber) {
+        String caseText = info.toLowerCase();
         String caseTime = time.toLowerCase();
-        String[] parts = subject.split(" ");
+        String[] parts = info.split(" ");
         StringBuilder teacherName = new StringBuilder();
 
         if (caseText.contains("нет пары")) {
@@ -205,6 +256,4 @@ public class ScheduleHandler {
         }
         return null;
     }
-
-
 }

@@ -8,12 +8,19 @@ public record ScheduleGroup(String groupName, List<ScheduleItem> scheduleItems) 
         this(group, new ArrayList<>());
     }
 
-    public ScheduleGroup add(ScheduleItem scheduleItem) {
+    public void add(ScheduleItem scheduleItem) {
         this.scheduleItems.add(scheduleItem);
-        return this;
+    }
+
+    public void combine(ScheduleGroup scheduleGroup) {
+        this.scheduleItems.addAll(scheduleGroup.scheduleItems);
     }
 
     public boolean isEmpty() {
         return scheduleItems.isEmpty();
+    }
+
+    public boolean contains(ScheduleItem scheduleItem) {
+        return scheduleItems.contains(scheduleItem);
     }
 }

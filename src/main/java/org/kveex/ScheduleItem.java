@@ -1,6 +1,10 @@
 package org.kveex;
 
 public record ScheduleItem(String time, String subject, String teacherName, String roomNumber) {
+    /**
+     * Возвращает строку с уроками, как промежуток времени, занимаемый учебной парой
+     * @return Строку с промежутком времени соответствующим урокам
+     */
     public String goodTime() {
         String goodTime = time;
         switch (time) {
