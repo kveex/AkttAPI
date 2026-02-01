@@ -1,18 +1,20 @@
 package org.kveex.schedule;
 
-public class ScheduleItem {
-    private final String time;
-    private final String subject;
-    private final String teacherName;
-    private final String roomNumber;
-    private final int subGroup;
+import org.jetbrains.annotations.NotNull;
 
-    public ScheduleItem(String time, String subject, String teacherName, String roomNumber, int subGroup) {
-        this.time = setGoodTime(time);
+public record ScheduleItem(String time, String subject, String teacherName, String roomNumber, SubGroup subGroup) {
+    public enum SubGroup {
+        FIRST,
+        SECOND,
+        BOTH
+    }
+
+    public ScheduleItem(String time, String subject, String teacherName, String roomNumber, SubGroup subGroup) {
         this.subject = subject;
         this.teacherName = teacherName;
         this.roomNumber = roomNumber;
         this.subGroup = subGroup;
+        this.time = setGoodTime(time);
     }
 
     public String setGoodTime(String time) {
@@ -23,7 +25,6 @@ public class ScheduleItem {
                 break;
             }
             case "3,4": {
-                if (roomNumber == null) break;
                 boolean isInSecondCampus = true;
                 try {
                     int roomNum = Integer.parseInt(roomNumber.replace("а", "").replace("б", ""));
@@ -44,23 +45,13 @@ public class ScheduleItem {
         return goodTime;
     }
 
-    public String getTime() {
-        return time;
-    }
-
-    public String getSubject() {
-        return subject;
-    }
-
-    public String getTeacherName() {
-        return teacherName;
-    }
-
-    public String getRoomNumber() {
-        return roomNumber;
-    }
-
-    public int getSubGroup() {
-        return subGroup;
+    public static int toInt(@NotNull SubGroup subGroup) {
+        int result;
+        switch (subGroup) {
+            case FIRST -> result = 1;
+            case SECOND -> result = 2;
+            default -> result = 0;
+        }
+        return result;
     }
 }

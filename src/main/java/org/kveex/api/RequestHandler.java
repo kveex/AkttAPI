@@ -6,12 +6,13 @@ import org.kveex.AkttAPI;
 import org.kveex.schedule.ScheduleGroup;
 import org.kveex.schedule.ScheduleHandler;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 public class RequestHandler {
     public static void showTest(Context context) {
         AkttAPI.LOGGER.info("Сделан запрос на главную страницу");
-        context.result("Привет от АКТТ REST API");
+        context.json(Map.of("message", "Привет от АКТТ REST API"));
     }
 
     public static void requestScheduleBothSubGroups(Context context, ScheduleHandler scheduleHandler) {
@@ -45,5 +46,11 @@ public class RequestHandler {
             context.json(Map.of("error", e.toString()));
             AkttAPI.LOGGER.error(e.toString());
         }
+    }
+
+    public static void requestScheduleDate(Context context, ScheduleHandler scheduleHandler) {
+        LocalDate scheduleDate = scheduleHandler.getScheduleDate();
+        AkttAPI.LOGGER.info("Запрос на дату расписания");
+        context.json(Map.of("scheduleDate", scheduleDate.toString()));
     }
 }

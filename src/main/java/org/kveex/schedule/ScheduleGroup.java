@@ -1,11 +1,11 @@
-package org.kveex;
+package org.kveex.schedule;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public record ScheduleGroup(String groupName, List<ScheduleItem> scheduleItems) {
-    public ScheduleGroup(String group) {
-        this(group, new ArrayList<>());
+public record ScheduleGroup(String scheduleDate, String groupName, List<ScheduleItem> scheduleItems) {
+    public ScheduleGroup(String scheduleDate, String group) {
+        this(scheduleDate, group, new ArrayList<>());
     }
 
     public void add(ScheduleItem scheduleItem) {
@@ -14,10 +14,6 @@ public record ScheduleGroup(String groupName, List<ScheduleItem> scheduleItems) 
 
     public void combine(ScheduleGroup scheduleGroup) {
         this.scheduleItems.addAll(scheduleGroup.scheduleItems);
-    }
-
-    public boolean isEmpty() {
-        return scheduleItems.isEmpty();
     }
 
     public boolean contains(ScheduleItem scheduleItem) {

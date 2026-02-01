@@ -53,6 +53,7 @@ public class AkttAPI {
     private static void startApp() {
         var app = Javalin.create(config -> config.showJavalinBanner = false)
                 .get("/", RequestHandler::showTest)
+                .get("/api/schedule/date", ctx -> RequestHandler.requestScheduleDate(ctx, scheduleHandler))
                 .get("/api/schedule/{group}", ctx -> RequestHandler.requestScheduleBothSubGroups(ctx, scheduleHandler))
                 .get("/api/schedule/{group}/{subGroup}", ctx -> RequestHandler.requestScheduleDefinedSubGroup(ctx, scheduleHandler));
 

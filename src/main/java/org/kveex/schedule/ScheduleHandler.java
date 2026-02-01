@@ -7,6 +7,10 @@ import org.jsoup.select.Elements;
 import org.kveex.AkttAPI;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.util.List;
 
 /**
  * Класс для работы с расписаниями.
@@ -14,21 +18,100 @@ import java.io.IOException;
  */
 public class ScheduleHandler {
     //TODO: сделать возможность искать по имени преподавателя и кабинету
-    //TODO: сделать так, чтобы он брал дату расписания
+    //TODO: метод для собирания списка всех групп
     private static final int GROUP_TIME_COLUMN = 1;
     private static final int GROUP_SUBJECT_COLUMN = 2;
     private static final int GROUP_COLUMN_WIDTH = 3;
 
     private Document document;
     private static final String URL = "https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html";
+    private LocalDateTime editTime;
 
     public ScheduleHandler() throws IOException {
         updateDocument();
+        editTime = getScheduleEditDate();
     }
 
+    /**
+     * Обновляет имеющийся HTML файл для парсинга
+     */
     public void updateDocument() throws IOException {
         this.document = Jsoup.connect(URL).get();
-        AkttAPI.LOGGER.info("Документ обновлён");
+        LocalDateTime newEditTime = getScheduleEditDate();
+        if (newEditTime == null) {
+            AkttAPI.LOGGER.error("Не удалось получить время изменения документа, но он всё равно обновлён!");
+            return;
+        }
+        if (editTime == null) return;
+        if (newEditTime.isAfter(editTime)) {
+            AkttAPI.LOGGER.info("HTML скачан, документ обновлён");
+            editTime = newEditTime;
+        } else {
+            AkttAPI.LOGGER.info("HTML скачан, обновлений документа нет");
+        }
+    }
+
+    /**
+     * Собирает информацию об изменении документа, сохранённые в метадате
+     * @return Дату и время обновления
+     */
+    private LocalDateTime getScheduleEditDate() {
+        Elements metaData = document.select("meta");
+        String contentValue = null;
+
+        for (Element meta : metaData) {
+            String metaString = meta.toString();
+            if (!metaString.contains("property=\"dateModified\"")) continue;
+            String content;
+            content = metaString.split(" ")[2];
+            content = content.split("=")[1];
+            content = content.replace("\"", "");
+            content = content.replace(">", "");
+            contentValue = content;
+        }
+
+        if (contentValue == null) return null;
+
+        OffsetDateTime offsetDateTime = OffsetDateTime.parse(contentValue);
+        return offsetDateTime.toLocalDateTime();
+    }
+
+    /**
+     * Берёт дату на которое рассчитано расписание
+     * @return LocalDate класс с датой месяцом и голом расписания в формате "yyyy-mm-dd"
+     */
+    public LocalDate getScheduleDate() {
+        Elements elements = document.select("p");
+        String[] dateParts = new String[8];
+        List<String> months = List.of(
+                "января", "февраля",
+                "марта", "апреля", "мая",
+                "июня", "июля", "августа",
+                "сентября", "октября","ноября",
+                "декабря");
+        int year = 1;
+        int month = 1;
+        int day = 1;
+
+
+        for (Element element : elements) {
+            String elementText = element.text().toLowerCase();
+            if (!elementText.contains("расписание на")) continue;
+
+            dateParts = elementText.split(" ");
+        }
+
+        for (String part : dateParts) {
+            if (part.matches("\\d{2}")) {
+                day = Integer.parseInt(part);
+            } else if (part.matches("\\d{4}г")) {
+                year = Integer.parseInt(part.replace("г", ""));
+            } else if (months.contains(part)) {
+                month = months.indexOf(part) + 1;
+            }
+        }
+
+        return LocalDate.of(year, month, day);
     }
 
     /**
@@ -38,7 +121,8 @@ public class ScheduleHandler {
      * @return Класс со списком классов предметов, каждый из которых содержит в себе информацию об учебной паре
      */
     public ScheduleGroup createSchedule(String groupName, int subGroupNumber) throws IllegalArgumentException{
-        ScheduleGroup scheduleGroup = new ScheduleGroup(groupName);
+        String scheduleDate = getScheduleDate().toString();
+        ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate, groupName);
         Elements tables = this.document.select("table");
         Element scheduleTable = null;
 
@@ -97,8 +181,9 @@ public class ScheduleHandler {
      * @see ScheduleHandler#createSchedule(String, int)
      * @return Группу с предметом или предметами (в зависимости от subGroupNumber и наличия предметов в info)
      */
-    private static ScheduleGroup fillScheduleGroup(String groupName, String time, String info, int subGroupNumber) {
-        ScheduleGroup scheduleGroup = new ScheduleGroup(groupName);
+    private ScheduleGroup fillScheduleGroup(String groupName, String time, String info, int subGroupNumber) {
+        String scheduleDate = getScheduleDate().toString();
+        ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate, groupName);
         ScheduleItem scheduleItem;
         if (subGroupNumber == 0) {
             for (int i = 1; i <= 2; i++) {
@@ -124,7 +209,8 @@ public class ScheduleHandler {
         String subjectName;
         StringBuilder teacherName;
         String roomNumber;
-        int itemSubGroup = 0;
+//        int itemSubGroup = 0;
+        ScheduleItem.SubGroup itemSubGroup = ScheduleItem.SubGroup.BOTH;
 
         for (String subject : subjects) {
             String[] parts = subject.split(" ");
@@ -135,19 +221,20 @@ public class ScheduleHandler {
 
             for (String part : parts) {
                 if (part.trim().equals("1п")) {
-                    itemSubGroup = 1;
+                    itemSubGroup = ScheduleItem.SubGroup.FIRST;
                     break;
                 } else if (part.trim().contains("2п")) {
-                    itemSubGroup = 2;
+                    itemSubGroup = ScheduleItem.SubGroup.SECOND;
                     break;
                 }
             }
+            int itemSubGroupNum = ScheduleItem.toInt(itemSubGroup);
 
-            if (itemSubGroup != 0 && itemSubGroup != subGroup && subjects.length == 1) {
+            if (itemSubGroupNum != 0 && itemSubGroupNum != subGroup && subjects.length == 1) {
                 return null;
             }
 
-            if (subGroup != 0 && itemSubGroup != 0 && itemSubGroup != subGroup) {
+            if (subGroup != 0 && itemSubGroupNum != 0 && itemSubGroupNum != subGroup) {
                 continue;
             }
 
@@ -158,10 +245,10 @@ public class ScheduleHandler {
                 roomNumber = "Не указан";
             }
 
-            ScheduleItem staticCaseItem = checkForStaticCases(time, subject, roomNumber);
+            ScheduleItem staticCaseItem = checkForStaticCases(time, subject, roomNumber, itemSubGroup);
             if (staticCaseItem != null) {
                 //TODO: сделать полноценную проверку, не только для названия предмета
-                return !staticCaseItem.getSubject().isEmpty() ? staticCaseItem : null;
+                return !staticCaseItem.subject().isEmpty() ? staticCaseItem : null;
             }
 
             int subjectNameEndIndex;
@@ -209,18 +296,18 @@ public class ScheduleHandler {
      * @param roomNumber Кабинет проведения учебной пары
      * @return Класс с информацией об особом случае учебной пары
      */
-    private static ScheduleItem checkForStaticCases(String time, String info, String roomNumber) {
+    private static ScheduleItem checkForStaticCases(String time, String info, String roomNumber, ScheduleItem.SubGroup subGroup) {
         String caseText = info.toLowerCase();
         String caseTime = time.toLowerCase();
         String[] parts = info.split(" ");
         StringBuilder teacherName = new StringBuilder();
 
         if (caseText.contains("нет пары")) {
-            return new ScheduleItem(time, "", "", roomNumber, 0);
+            return new ScheduleItem(time, "", "", roomNumber, subGroup);
         }
 
         if (caseText.contains("о важном")) {
-            return new ScheduleItem(time, "Разговор о важном", "Не указан", roomNumber, 0);
+            return new ScheduleItem(time, "Разговор о важном", "Не указан", roomNumber, subGroup);
         }
 
         if (caseText.contains("лыжи снежинка")) {
@@ -230,14 +317,14 @@ public class ScheduleHandler {
                     teacherName.append(parts[i]).append(" ");
                 }
             }
-            return new ScheduleItem(time, subjectName, teacherName.toString(), "Снежинка", 0);
+            return new ScheduleItem(time, subjectName, teacherName.toString(), "Снежинка", subGroup);
         }
 
         if (caseTime.contains("пп") || caseTime.contains("уп")) {
             teacherName = new StringBuilder();
             for (String part : parts) teacherName.append(part).append(" ");
 
-            return new ScheduleItem(time, "Практика", teacherName.toString(), roomNumber, 0);
+            return new ScheduleItem(time, "Практика", teacherName.toString(), roomNumber, subGroup);
         }
         return null;
     }
