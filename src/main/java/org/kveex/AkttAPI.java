@@ -2,7 +2,7 @@ package org.kveex;
 
 import io.javalin.Javalin;
 import org.kveex.api.ArgsParser;
-import org.kveex.api.RequestHandler;
+import org.kveex.api.GetHandler;
 import org.kveex.schedule.ScheduleHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,10 +52,10 @@ public class AkttAPI {
 
     private static void startApp() {
         var app = Javalin.create(config -> config.showJavalinBanner = false)
-                .get("/", RequestHandler::showTest)
-                .get("/api/schedule/date", ctx -> RequestHandler.requestScheduleDate(ctx, scheduleHandler))
-                .get("/api/schedule/{group}", ctx -> RequestHandler.requestScheduleBothSubGroups(ctx, scheduleHandler))
-                .get("/api/schedule/{group}/{subGroup}", ctx -> RequestHandler.requestScheduleDefinedSubGroup(ctx, scheduleHandler));
+                .get("/", GetHandler::showTest)
+                .get("/api/schedule/groups", ctx -> GetHandler.gerGroupsList(ctx, scheduleHandler))
+                .get("/api/schedule/{group}", ctx -> GetHandler.getScheduleBothSubGroups(ctx, scheduleHandler))
+                .get("/api/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleDefinedSubGroup(ctx, scheduleHandler));
 
         app.start(port);
     }

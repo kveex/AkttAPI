@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,7 +19,6 @@ import java.util.List;
  */
 public class ScheduleHandler {
     //TODO: сделать возможность искать по имени преподавателя и кабинету
-    //TODO: метод для собирания списка всех групп
     private static final int GROUP_TIME_COLUMN = 1;
     private static final int GROUP_SUBJECT_COLUMN = 2;
     private static final int GROUP_COLUMN_WIDTH = 3;
@@ -93,7 +93,6 @@ public class ScheduleHandler {
         int month = 1;
         int day = 1;
 
-
         for (Element element : elements) {
             String elementText = element.text().toLowerCase();
             if (!elementText.contains("расписание на")) continue;
@@ -114,6 +113,24 @@ public class ScheduleHandler {
         return LocalDate.of(year, month, day);
     }
 
+    public List<String> getAllGroups() {
+        List<String> groups = new ArrayList<>();
+        Elements elements = this.document.select("table");
+        Elements rows = elements.select("tr");
+
+        for (Element row : rows) {
+            Elements cells = row.select("td");
+
+            for (int i = 0; i < 9; i+=3) {
+                String group = cells.get(i).text().toLowerCase();
+                if (group.isBlank() || group.contains("группа")) continue;
+                groups.add(group);
+            }
+        }
+
+        return groups;
+    }
+
     /**
      * Создаёт расписание для указанной группы с учётом подгруппы
      * @param groupName Имя группы, например "23-14ИС"
@@ -127,7 +144,7 @@ public class ScheduleHandler {
         Element scheduleTable = null;
 
         for (Element table : tables) {
-            if (!table.text().contains(groupName)) continue;
+            if (!table.text().toLowerCase().contains(groupName)) continue;
             scheduleTable = table;
         }
 
@@ -150,8 +167,8 @@ public class ScheduleHandler {
 
                 String groupCellText = cells.get(cellIndex).text().trim();
 
-                if (!groupCellText.isEmpty() && !groupCellText.equals("&nbsp;"))
-                    currentGroups[groupIndex] = groupCellText;
+                if (!groupCellText.isBlank())
+                    currentGroups[groupIndex] = groupCellText.toLowerCase();
 
                 if (currentGroups[groupIndex] != null && currentGroups[groupIndex].contains(groupName)) {
 
@@ -247,7 +264,6 @@ public class ScheduleHandler {
 
             ScheduleItem staticCaseItem = checkForStaticCases(time, subject, roomNumber, itemSubGroup);
             if (staticCaseItem != null) {
-                //TODO: сделать полноценную проверку, не только для названия предмета
                 return !staticCaseItem.subject().isEmpty() ? staticCaseItem : null;
             }
 

@@ -6,22 +6,22 @@ import org.kveex.AkttAPI;
 import org.kveex.schedule.ScheduleGroup;
 import org.kveex.schedule.ScheduleHandler;
 
-import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
-public class RequestHandler {
+public class GetHandler {
     public static void showTest(Context context) {
         AkttAPI.LOGGER.info("Сделан запрос на главную страницу");
         context.json(Map.of("message", "Привет от АКТТ REST API"));
     }
 
-    public static void requestScheduleBothSubGroups(Context context, ScheduleHandler scheduleHandler) {
+    public static void getScheduleBothSubGroups(Context context, ScheduleHandler scheduleHandler) {
         String groupName = context.pathParam("group");
         AkttAPI.LOGGER.info("Запрос расписания для группы {}, на все подгруппы", groupName);
         sendScheduleGroup(scheduleHandler, context, groupName, 0);
     }
 
-    public static void requestScheduleDefinedSubGroup(Context context, ScheduleHandler scheduleHandler) {
+    public static void getScheduleDefinedSubGroup(Context context, ScheduleHandler scheduleHandler) {
         String groupName = context.pathParam("group");
         int subGroup = Integer.parseInt(context.pathParam("subGroup"));
 
@@ -48,9 +48,9 @@ public class RequestHandler {
         }
     }
 
-    public static void requestScheduleDate(Context context, ScheduleHandler scheduleHandler) {
-        LocalDate scheduleDate = scheduleHandler.getScheduleDate();
-        AkttAPI.LOGGER.info("Запрос на дату расписания");
-        context.json(Map.of("scheduleDate", scheduleDate.toString()));
+    public static void gerGroupsList(Context context, ScheduleHandler scheduleHandler) {
+        List<String> groups = scheduleHandler.getAllGroups();
+        AkttAPI.LOGGER.info("Запрос на список групп");
+        context.json(Map.of("groupsList", groups));
     }
 }
