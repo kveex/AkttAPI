@@ -48,7 +48,7 @@ public class GetHandler {
         }
     }
 
-    public static void gerGroupsList(Context context, ScheduleHandler scheduleHandler) {
+    public static void getGroupsList(Context context, ScheduleHandler scheduleHandler) {
         List<String> groups = scheduleHandler.getAllGroups();
         AkttAPI.LOGGER.info("Запрос на список групп");
         context.json(Map.of("groupsList", groups));

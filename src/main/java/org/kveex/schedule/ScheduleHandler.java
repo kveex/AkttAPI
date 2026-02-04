@@ -18,7 +18,7 @@ import java.util.List;
  * Класс предоставляет методы для создания и получения расписаний
  */
 public class ScheduleHandler {
-    //TODO: сделать возможность искать по имени преподавателя и кабинету
+    //TODO: сделать возможность искать по имени преподавателя
     private static final int GROUP_TIME_COLUMN = 1;
     private static final int GROUP_SUBJECT_COLUMN = 2;
     private static final int GROUP_COLUMN_WIDTH = 3;
@@ -133,7 +133,7 @@ public class ScheduleHandler {
 
     /**
      * Создаёт расписание для указанной группы с учётом подгруппы
-     * @param groupName Имя группы, например "23-14ИС"
+     * @param groupName Имя группы, например "23-14ис"
      * @param subGroupNumber Номер подгруппы, может быть 0, для обеих подгрупп и 1 - 2 для конкретных
      * @return Класс со списком классов предметов, каждый из которых содержит в себе информацию об учебной паре
      */
@@ -226,7 +226,6 @@ public class ScheduleHandler {
         String subjectName;
         StringBuilder teacherName;
         String roomNumber;
-//        int itemSubGroup = 0;
         ScheduleItem.SubGroup itemSubGroup = ScheduleItem.SubGroup.BOTH;
 
         for (String subject : subjects) {
