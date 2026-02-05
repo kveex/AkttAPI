@@ -22,4 +22,8 @@ public class ScheduleHandlerV2 {
     public List<ScheduleGroup> getSchedule() {
         return htmlScheduleParser.getSchedule();
     }
+
+    public List<String> getGroupsList() {
+        return htmlScheduleParser.getAllGroups();
+    }
 }

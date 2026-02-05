@@ -1,6 +1,8 @@
 package org.kveex;
 
 import io.javalin.Javalin;
+import io.javalin.openapi.plugin.OpenApiPlugin;
+import io.javalin.openapi.plugin.swagger.SwaggerPlugin;
 import org.kveex.api.ArgsParser;
 import org.kveex.api.GetHandler;
 import org.kveex.schedule.ScheduleHandler;
@@ -54,15 +56,40 @@ public class AkttAPI {
     }
 
     private static void startApp() {
-        var app = Javalin.create(config -> config.showJavalinBanner = false)
-                .get("/", GetHandler::showTest)
-                .get("/api/schedule/groups", ctx -> GetHandler.getGroupsList(ctx, scheduleHandler))
-                .get("/api/schedule/{group}", ctx -> GetHandler.getScheduleBothSubGroups(ctx, scheduleHandler))
-                .get("/api/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleDefinedSubGroup(ctx, scheduleHandler))
-                .get("/api/v2/schedule/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandlerV2, ctx))
-                .get("/api/v2/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandlerV2, ctx))
-                .get("/api/v2/schedule/", ctx -> GetHandler.getSchedule(scheduleHandlerV2, ctx));
+        var app = Javalin.create(config -> {
+                config.showJavalinBanner = false;
+                config.registerPlugin(new OpenApiPlugin(pluginConfig ->
+                        pluginConfig.withDocumentationPath("/openapi")
+                                .withDefinitionConfiguration(
+                                        (version, definition) -> definition.withInfo(
+                                                info -> {
+                                    info.setTitle("AKTT Schedule API");
+                                    info.setVersion("1.0");
+                                    info.setDescription("API для получения расписания занятий");
+                                }))
+                        )
+                );
+
+                config.registerPlugin(new SwaggerPlugin(pluginConfig -> {
+                    pluginConfig.setUiPath("/swagger-ui");
+                    pluginConfig.setDocumentationPath("/openapi");
+                    pluginConfig.setTitle("AKTT API by kveex");
+                }));
+            }
+        )
+        .get("/", GetHandler::showTest)
+        .get("/api/schedule/groups", ctx -> GetHandler.getGroupsList(ctx, scheduleHandler))
+        .get("/api/schedule/{group}", ctx -> GetHandler.getScheduleBothSubGroups(ctx, scheduleHandler))
+        .get("/api/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleDefinedSubGroup(ctx, scheduleHandler))
+        .get("api/v2/schedule/groups", ctx -> GetHandler.getGroupsList(scheduleHandlerV2, ctx))
+        .get("/api/v2/schedule/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandlerV2, ctx))
+        .get("/api/v2/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandlerV2, ctx))
+        .get("/api/v2/schedule/", ctx -> GetHandler.getSchedule(scheduleHandlerV2, ctx));
 
         app.start(port);
+
+        LOGGER.info("API запущено на порту: {}", port);
+        LOGGER.info("OpenAPI спецификация: http://localhost:{}/openapi", port);
+        LOGGER.info("Swagger UI: http://localhost:{}/swagger-ui", port);
     }
 }

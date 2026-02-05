@@ -2,6 +2,7 @@ package org.kveex.api;
 
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
+import io.javalin.openapi.*;
 import org.kveex.AkttAPI;
 import org.kveex.schedule.ScheduleGroup;
 import org.kveex.schedule.ScheduleHandler;
@@ -56,13 +57,43 @@ public class GetHandler {
         context.json(Map.of("groupsList", groups));
     }
 
-    public static void getScheduleGroupBothSubGroups(ScheduleHandlerV2 scheduleHandlerV2, Context context) {
+    @OpenApi(
+            summary = "Выдаёт расписание для указанной группы и подгруппы",
+            operationId = "getScheduleGroupDefinedSubGroup",
+            path = "/api/v2/schedule/{group}/{subGroup}",
+            pathParams = {
+                    @OpenApiParam(
+                            name = "group",
+                            description = "Название учебной группы, обязательно не заглавными буквами",
+                            example = "23-14ис",
+                            required = true
+                    ),
+                    @OpenApiParam(
+                            name = "subGroup",
+                            description = "Номер подгруппы: 1 - первая, 2 - вторая, 0 - обе",
+                            example = "1",
+                            required = true
+                    )
+            },
+            methods = HttpMethod.GET,
+            tags = {"Schedule"},
+            responses = {
+                    @OpenApiResponse(
+                            status = "200",
+                            content = {@OpenApiContent(from = ScheduleGroup.class)}),
+                    @OpenApiResponse(
+                            status = "404",
+                            description = "Группа не найдена"
+                    )
+            }
+    )
+    public static void getScheduleGroupDefinedSubGroup(ScheduleHandlerV2 scheduleHandler, Context context) {
         String groupName = context.pathParam("group");
         int subGroup = Integer.parseInt(context.pathParam("subGroup"));
 
-
         try {
-            var sch = scheduleHandlerV2.getScheduleGroup(groupName, ScheduleItem.SubGroup.toSubGroup(subGroup));
+            var sch = scheduleHandler.getScheduleGroup(groupName, ScheduleItem.SubGroup.toSubGroup(subGroup));
+            AkttAPI.LOGGER.info("Запрос на расписание группы {} для {} подгруппы", groupName, subGroup);
             context.json(sch);
         } catch (IllegalArgumentException e) {
             context.status(HttpStatus.NOT_FOUND);
@@ -71,10 +102,35 @@ public class GetHandler {
         }
     }
 
-    public static void getScheduleGroupDefinedSubGroup(ScheduleHandlerV2 scheduleHandlerV2, Context context) {
+    @OpenApi(
+            summary = "Выдаёт расписание для указанной группы с обеими подгруппами",
+            operationId = "getScheduleGroupBothSubGroups",
+            path = "/api/v2/schedule/{group}",
+            pathParams = {
+                    @OpenApiParam(
+                            name = "group",
+                            description = "Название учебной группы, обязательно не заглавными буквами",
+                            example = "23-14ис",
+                            required = true
+                    )
+            },
+            methods = HttpMethod.GET,
+            tags = {"Schedule"},
+            responses = {
+                    @OpenApiResponse(
+                            status = "200",
+                            content = {@OpenApiContent(from = ScheduleGroup.class)}),
+                    @OpenApiResponse(
+                            status = "404",
+                            description = "Группа не найдена"
+                    )
+            }
+    )
+    public static void getScheduleGroupBothSubGroups(ScheduleHandlerV2 scheduleHandler, Context context) {
         String groupName = context.pathParam("group");
         try {
-            var sch = scheduleHandlerV2.getScheduleGroup(groupName);
+            var sch = scheduleHandler.getScheduleGroup(groupName);
+            AkttAPI.LOGGER.info("Запрос на расписание для группы {} для обеих подгрупп", groupName);
             context.json(sch);
         } catch (IllegalArgumentException e) {
             context.status(HttpStatus.NOT_FOUND);
@@ -83,14 +139,39 @@ public class GetHandler {
         }
     }
 
-    public static void getSchedule(ScheduleHandlerV2 scheduleHandlerV2, Context context) {
-        try {
-            var sch = scheduleHandlerV2.getSchedule();
-            context.json(Map.of("schedule", sch));
-        } catch (IllegalArgumentException e) {
-            context.status(HttpStatus.NOT_FOUND);
-            context.json(Map.of("error", e.toString()));
-            AkttAPI.LOGGER.error(e.toString());
-        }
+    @OpenApi(
+            summary = "Выдаёт расписание всех групп, с обеими подгруппами",
+            operationId = "getSchedule",
+            path = "/api/v2/schedule/",
+            methods = HttpMethod.GET,
+            tags = {"Schedule"},
+            responses = {
+                    @OpenApiResponse(
+                            status = "200",
+                            content = {@OpenApiContent(from = ScheduleGroup.class)})
+            }
+    )
+    public static void getSchedule(ScheduleHandlerV2 scheduleHandler, Context context) {
+        var sch = scheduleHandler.getSchedule();
+        AkttAPI.LOGGER.info("Запрос на полное расписание");
+        context.json(Map.of("schedule", sch));
+    }
+
+    @OpenApi(
+            summary = "Выдаёт список названий всех групп",
+            operationId = "getGroupsList",
+            path = "/api/v2/schedule/groups",
+            methods = HttpMethod.GET,
+            tags = {"Schedule"},
+            responses = {
+                    @OpenApiResponse(
+                            status = "200",
+                            content = {@OpenApiContent(from = ScheduleGroup.class)})
+            }
+    )
+    public static void getGroupsList(ScheduleHandlerV2 scheduleHandler, Context context) {
+        List<String> groups = scheduleHandler.getGroupsList();
+        AkttAPI.LOGGER.info("Запрос на список групп");
+        context.json(Map.of("groupsList", groups));
     }
 }
