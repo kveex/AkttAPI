@@ -4,6 +4,7 @@ import io.javalin.Javalin;
 import org.kveex.api.ArgsParser;
 import org.kveex.api.GetHandler;
 import org.kveex.schedule.ScheduleHandler;
+import org.kveex.schedule.ScheduleHandlerV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +18,7 @@ public class AkttAPI {
     private static int port;
     private static int repeatDelay;
     private static ScheduleHandler scheduleHandler;
+    private static ScheduleHandlerV2 scheduleHandlerV2;
 
     public static void main(String[] args) {
         setArgs(args);
@@ -35,6 +37,7 @@ public class AkttAPI {
         Timer timer = new Timer();
         try {
             scheduleHandler = new ScheduleHandler();
+            scheduleHandlerV2 = new ScheduleHandlerV2();
         } catch (IOException e) {
             throw new RuntimeException("ScheduleHandler broken!\n" + e);
         }
@@ -55,7 +58,10 @@ public class AkttAPI {
                 .get("/", GetHandler::showTest)
                 .get("/api/schedule/groups", ctx -> GetHandler.getGroupsList(ctx, scheduleHandler))
                 .get("/api/schedule/{group}", ctx -> GetHandler.getScheduleBothSubGroups(ctx, scheduleHandler))
-                .get("/api/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleDefinedSubGroup(ctx, scheduleHandler));
+                .get("/api/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleDefinedSubGroup(ctx, scheduleHandler))
+                .get("/api/v2/schedule/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandlerV2, ctx))
+                .get("/api/v2/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandlerV2, ctx))
+                .get("/api/v2/schedule/", ctx -> GetHandler.getSchedule(scheduleHandlerV2, ctx));
 
         app.start(port);
     }

@@ -19,4 +19,14 @@ public record ScheduleGroup(String scheduleDate, String groupName, List<Schedule
     public boolean contains(ScheduleItem scheduleItem) {
         return scheduleItems.contains(scheduleItem);
     }
+
+    public ScheduleGroup getSubGroup(ScheduleItem.SubGroup subGroup) {
+        ScheduleGroup newScheduleGroup = new ScheduleGroup(this.scheduleDate, this.groupName);
+        for (ScheduleItem scheduleItem : this.scheduleItems) {
+            if (scheduleItem.subGroup() == subGroup || scheduleItem.subGroup() == ScheduleItem.SubGroup.BOTH) {
+                newScheduleGroup.add(scheduleItem);
+            }
+        }
+        return newScheduleGroup;
+    }
 }

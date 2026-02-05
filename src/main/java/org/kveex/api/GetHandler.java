@@ -5,6 +5,8 @@ import io.javalin.http.HttpStatus;
 import org.kveex.AkttAPI;
 import org.kveex.schedule.ScheduleGroup;
 import org.kveex.schedule.ScheduleHandler;
+import org.kveex.schedule.ScheduleHandlerV2;
+import org.kveex.schedule.ScheduleItem;
 
 import java.util.List;
 import java.util.Map;
@@ -52,5 +54,43 @@ public class GetHandler {
         List<String> groups = scheduleHandler.getAllGroups();
         AkttAPI.LOGGER.info("Запрос на список групп");
         context.json(Map.of("groupsList", groups));
+    }
+
+    public static void getScheduleGroupBothSubGroups(ScheduleHandlerV2 scheduleHandlerV2, Context context) {
+        String groupName = context.pathParam("group");
+        int subGroup = Integer.parseInt(context.pathParam("subGroup"));
+
+
+        try {
+            var sch = scheduleHandlerV2.getScheduleGroup(groupName, ScheduleItem.SubGroup.toSubGroup(subGroup));
+            context.json(sch);
+        } catch (IllegalArgumentException e) {
+            context.status(HttpStatus.NOT_FOUND);
+            context.json(Map.of("error", e.toString()));
+            AkttAPI.LOGGER.error(e.toString());
+        }
+    }
+
+    public static void getScheduleGroupDefinedSubGroup(ScheduleHandlerV2 scheduleHandlerV2, Context context) {
+        String groupName = context.pathParam("group");
+        try {
+            var sch = scheduleHandlerV2.getScheduleGroup(groupName);
+            context.json(sch);
+        } catch (IllegalArgumentException e) {
+            context.status(HttpStatus.NOT_FOUND);
+            context.json(Map.of("error", e.toString()));
+            AkttAPI.LOGGER.error(e.toString());
+        }
+    }
+
+    public static void getSchedule(ScheduleHandlerV2 scheduleHandlerV2, Context context) {
+        try {
+            var sch = scheduleHandlerV2.getSchedule();
+            context.json(Map.of("schedule", sch));
+        } catch (IllegalArgumentException e) {
+            context.status(HttpStatus.NOT_FOUND);
+            context.json(Map.of("error", e.toString()));
+            AkttAPI.LOGGER.error(e.toString());
+        }
     }
 }

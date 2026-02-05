@@ -6,7 +6,15 @@ public record ScheduleItem(String time, String subject, String teacherName, Stri
     public enum SubGroup {
         FIRST,
         SECOND,
-        BOTH
+        BOTH;
+
+        public static SubGroup toSubGroup(int subgroup) {
+            return switch (subgroup) {
+                case 1 -> SubGroup.FIRST;
+                case 2 -> SubGroup.SECOND;
+                default -> SubGroup.BOTH;
+            };
+        }
     }
 
     public ScheduleItem(String time, String subject, String teacherName, String roomNumber, SubGroup subGroup) {
