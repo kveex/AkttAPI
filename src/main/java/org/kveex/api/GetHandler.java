@@ -93,8 +93,9 @@ public class GetHandler {
 
         try {
             var sch = scheduleHandler.getScheduleGroup(groupName, ScheduleItem.SubGroup.toSubGroup(subGroup));
-            AkttAPI.LOGGER.info("Запрос на расписание группы {} для {} подгруппы", groupName, subGroup);
+            context.status(HttpStatus.OK);
             context.json(sch);
+            AkttAPI.LOGGER.info("Запрос на расписание группы {} для {} подгруппы", groupName, subGroup);
         } catch (IllegalArgumentException e) {
             context.status(HttpStatus.NOT_FOUND);
             context.json(Map.of("error", e.toString()));
@@ -130,8 +131,9 @@ public class GetHandler {
         String groupName = context.pathParam("group");
         try {
             var sch = scheduleHandler.getScheduleGroup(groupName);
-            AkttAPI.LOGGER.info("Запрос на расписание для группы {} для обеих подгрупп", groupName);
+            context.status(HttpStatus.OK);
             context.json(sch);
+            AkttAPI.LOGGER.info("Запрос на расписание для группы {} для обеих подгрупп", groupName);
         } catch (IllegalArgumentException e) {
             context.status(HttpStatus.NOT_FOUND);
             context.json(Map.of("error", e.toString()));
@@ -153,8 +155,9 @@ public class GetHandler {
     )
     public static void getSchedule(ScheduleHandlerV2 scheduleHandler, Context context) {
         var sch = scheduleHandler.getSchedule();
-        AkttAPI.LOGGER.info("Запрос на полное расписание");
+        context.status(HttpStatus.OK);
         context.json(Map.of("schedule", sch));
+        AkttAPI.LOGGER.info("Запрос на полное расписание");
     }
 
     @OpenApi(
@@ -171,7 +174,8 @@ public class GetHandler {
     )
     public static void getGroupsList(ScheduleHandlerV2 scheduleHandler, Context context) {
         List<String> groups = scheduleHandler.getGroupsList();
-        AkttAPI.LOGGER.info("Запрос на список групп");
+        context.status(HttpStatus.OK);
         context.json(Map.of("groupsList", groups));
+        AkttAPI.LOGGER.info("Запрос на список групп");
     }
 }

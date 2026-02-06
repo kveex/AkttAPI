@@ -5,6 +5,7 @@ import io.javalin.openapi.plugin.OpenApiPlugin;
 import io.javalin.openapi.plugin.swagger.SwaggerPlugin;
 import org.kveex.api.ArgsParser;
 import org.kveex.api.GetHandler;
+import org.kveex.api.PostHandler;
 import org.kveex.schedule.ScheduleHandler;
 import org.kveex.schedule.ScheduleHandlerV2;
 import org.slf4j.Logger;
@@ -84,7 +85,8 @@ public class AkttAPI {
         .get("api/v2/schedule/groups", ctx -> GetHandler.getGroupsList(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandlerV2, ctx))
-        .get("/api/v2/schedule/", ctx -> GetHandler.getSchedule(scheduleHandlerV2, ctx));
+        .get("/api/v2/schedule/", ctx -> GetHandler.getSchedule(scheduleHandlerV2, ctx))
+        .post("/api/v2/certificate-upload", PostHandler::handleCertificate);
 
         app.start(port);
 
