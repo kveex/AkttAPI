@@ -4,11 +4,12 @@ import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import io.javalin.openapi.*;
 import org.kveex.AkttAPI;
+import org.kveex.schedule.SubGroup;
 import org.kveex.schedule.ScheduleGroup;
 import org.kveex.schedule.ScheduleHandler;
 import org.kveex.schedule.ScheduleHandlerV2;
-import org.kveex.schedule.ScheduleItem;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -60,7 +61,7 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт расписание для указанной группы и подгруппы",
             operationId = "getScheduleGroupDefinedSubGroup",
-            path = "/api/v2/schedule/{group}/{subGroup}",
+            path = "/api/v2/schedule/student/{group}/{subGroup}",
             pathParams = {
                     @OpenApiParam(
                             name = "group",
@@ -92,7 +93,7 @@ public class GetHandler {
         int subGroup = Integer.parseInt(context.pathParam("subGroup"));
 
         try {
-            var sch = scheduleHandler.getScheduleGroup(groupName, ScheduleItem.SubGroup.toSubGroup(subGroup));
+            var sch = scheduleHandler.getStudentScheduleGroup(groupName, SubGroup.toSubGroup(subGroup));
             context.status(HttpStatus.OK);
             context.json(sch);
             AkttAPI.LOGGER.info("Запрос на расписание группы {} для {} подгруппы", groupName, subGroup);
@@ -106,7 +107,7 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт расписание для указанной группы с обеими подгруппами",
             operationId = "getScheduleGroupBothSubGroups",
-            path = "/api/v2/schedule/{group}",
+            path = "/api/v2/schedule/student/{group}",
             pathParams = {
                     @OpenApiParam(
                             name = "group",
@@ -130,7 +131,7 @@ public class GetHandler {
     public static void getScheduleGroupBothSubGroups(ScheduleHandlerV2 scheduleHandler, Context context) {
         String groupName = context.pathParam("group");
         try {
-            var sch = scheduleHandler.getScheduleGroup(groupName);
+            var sch = scheduleHandler.getStudentScheduleGroup(groupName);
             context.status(HttpStatus.OK);
             context.json(sch);
             AkttAPI.LOGGER.info("Запрос на расписание для группы {} для обеих подгрупп", groupName);
@@ -177,5 +178,25 @@ public class GetHandler {
         context.status(HttpStatus.OK);
         context.json(Map.of("groupsList", groups));
         AkttAPI.LOGGER.info("Запрос на список групп");
+    }
+
+    @OpenApi(
+            summary = "Выдаёт список всех преподавателей",
+            operationId = "getTeachersList",
+            path = "/api/v2/schedule/teachers",
+            methods = HttpMethod.GET,
+            tags = {"Schedule"},
+            responses = {
+                    @OpenApiResponse(
+                            status = "200",
+                            content = {@OpenApiContent(from = ArrayList.class)}
+                    )
+            }
+    )
+    public static void getTeachersList(ScheduleHandlerV2 scheduleHandler, Context context) {
+        List<String> teachers = scheduleHandler.getTeachersList();
+        context.status(HttpStatus.OK);
+        context.json(Map.of("teachers", teachers));
+        AkttAPI.LOGGER.info("Запрос на список преподавателей");
     }
 }

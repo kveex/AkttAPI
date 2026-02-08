@@ -65,7 +65,7 @@ public class AkttAPI {
                                         (version, definition) -> definition.withInfo(
                                                 info -> {
                                     info.setTitle("AKTT Schedule API");
-                                    info.setVersion("1.0");
+                                    info.setVersion("1.1");
                                     info.setDescription("API для получения расписания занятий");
                                 }))
                         )
@@ -83,8 +83,9 @@ public class AkttAPI {
         .get("/api/schedule/{group}", ctx -> GetHandler.getScheduleBothSubGroups(ctx, scheduleHandler))
         .get("/api/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleDefinedSubGroup(ctx, scheduleHandler))
         .get("api/v2/schedule/groups", ctx -> GetHandler.getGroupsList(scheduleHandlerV2, ctx))
-        .get("/api/v2/schedule/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandlerV2, ctx))
-        .get("/api/v2/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandlerV2, ctx))
+        .get("/api/v2/schedule/student/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandlerV2, ctx))
+        .get("/api/v2/schedule/student/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandlerV2, ctx))
+        .get("/api/v2/schedule/teachers", ctx -> GetHandler.getTeachersList(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/", ctx -> GetHandler.getSchedule(scheduleHandlerV2, ctx))
         .post("/api/v2/certificate-upload", PostHandler::handleCertificate);
 

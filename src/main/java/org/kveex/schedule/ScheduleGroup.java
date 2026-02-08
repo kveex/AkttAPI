@@ -3,7 +3,7 @@ package org.kveex.schedule;
 import java.util.ArrayList;
 import java.util.List;
 
-public record ScheduleGroup(String scheduleDate, String groupName, List<ScheduleItem> scheduleItems) {
+public record ScheduleGroup(String scheduleDate, String groupOrTeacherName, List<ScheduleItem> scheduleItems) {
     public ScheduleGroup(String scheduleDate, String group) {
         this(scheduleDate, group, new ArrayList<>());
     }
@@ -20,10 +20,10 @@ public record ScheduleGroup(String scheduleDate, String groupName, List<Schedule
         return scheduleItems.contains(scheduleItem);
     }
 
-    public ScheduleGroup getSubGroup(ScheduleItem.SubGroup subGroup) {
-        ScheduleGroup newScheduleGroup = new ScheduleGroup(this.scheduleDate, this.groupName);
+    public ScheduleGroup getSubGroup(SubGroup subGroup) {
+        ScheduleGroup newScheduleGroup = new ScheduleGroup(this.scheduleDate, this.groupOrTeacherName);
         for (ScheduleItem scheduleItem : this.scheduleItems) {
-            if (scheduleItem.subGroup() == subGroup || scheduleItem.subGroup() == ScheduleItem.SubGroup.BOTH) {
+            if (scheduleItem.subGroup() == subGroup || scheduleItem.subGroup() == SubGroup.BOTH) {
                 newScheduleGroup.add(scheduleItem);
             }
         }

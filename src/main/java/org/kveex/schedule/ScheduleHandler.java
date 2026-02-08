@@ -226,7 +226,7 @@ public class ScheduleHandler {
         String subjectName;
         StringBuilder teacherName;
         String roomNumber;
-        ScheduleItem.SubGroup itemSubGroup = ScheduleItem.SubGroup.BOTH;
+        SubGroup itemSubGroup = SubGroup.BOTH;
 
         for (String subject : subjects) {
             String[] parts = subject.split(" ");
@@ -237,10 +237,10 @@ public class ScheduleHandler {
 
             for (String part : parts) {
                 if (part.trim().equals("1п")) {
-                    itemSubGroup = ScheduleItem.SubGroup.FIRST;
+                    itemSubGroup = SubGroup.FIRST;
                     break;
                 } else if (part.trim().contains("2п")) {
-                    itemSubGroup = ScheduleItem.SubGroup.SECOND;
+                    itemSubGroup = SubGroup.SECOND;
                     break;
                 }
             }
@@ -263,7 +263,7 @@ public class ScheduleHandler {
 
             ScheduleItem staticCaseItem = checkForStaticCases(time, subject, roomNumber, itemSubGroup);
             if (staticCaseItem != null) {
-                return !staticCaseItem.subject().isEmpty() ? staticCaseItem : null;
+                return !staticCaseItem.subjectName().isEmpty() ? staticCaseItem : null;
             }
 
             int subjectNameEndIndex;
@@ -311,7 +311,7 @@ public class ScheduleHandler {
      * @param roomNumber Кабинет проведения учебной пары
      * @return Класс с информацией об особом случае учебной пары
      */
-    private static ScheduleItem checkForStaticCases(String time, String info, String roomNumber, ScheduleItem.SubGroup subGroup) {
+    private static ScheduleItem checkForStaticCases(String time, String info, String roomNumber, SubGroup subGroup) {
         String caseText = info.toLowerCase();
         String caseTime = time.toLowerCase();
         String[] parts = info.split(" ");

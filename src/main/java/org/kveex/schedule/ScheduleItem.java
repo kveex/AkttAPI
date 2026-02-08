@@ -2,30 +2,19 @@ package org.kveex.schedule;
 
 import org.jetbrains.annotations.NotNull;
 
-public record ScheduleItem(String time, String subject, String teacherName, String roomNumber, SubGroup subGroup) {
-    public enum SubGroup {
-        FIRST,
-        SECOND,
-        BOTH;
+import java.util.ArrayList;
+import java.util.List;
 
-        public static SubGroup toSubGroup(int subgroup) {
-            return switch (subgroup) {
-                case 1 -> SubGroup.FIRST;
-                case 2 -> SubGroup.SECOND;
-                default -> SubGroup.BOTH;
-            };
-        }
-    }
-
-    public ScheduleItem(String time, String subject, String teacherName, String roomNumber, SubGroup subGroup) {
-        this.subject = subject;
-        this.teacherName = teacherName;
+public record ScheduleItem(String time, String subjectName, String teacherOrGroupName, String roomNumber, SubGroup subGroup) {
+    public ScheduleItem(String time, String subjectName, String teacherOrGroupName, String roomNumber, SubGroup subGroup) {
+        this.subjectName = subjectName;
+        this.teacherOrGroupName = teacherOrGroupName;
         this.roomNumber = roomNumber;
         this.subGroup = subGroup;
         this.time = setGoodTime(time);
     }
 
-    public String setGoodTime(String time) {
+    private String setGoodTime(String time) {
         String goodTime = time;
         switch (time) {
             case "1,2": {
@@ -51,6 +40,28 @@ public record ScheduleItem(String time, String subject, String teacherName, Stri
             }
         }
         return goodTime;
+    }
+
+    /**
+     * Метод для возвращения названия группы
+     * @return Строку названия группы
+     */
+    public String groupName() {
+        return this.teacherOrGroupName.contains("-") ? this.teacherOrGroupName : null;
+    }
+
+    /**
+     * Метод для возвращения имени и инициалов преподавателя
+     * @return пара строк с фамилией и инициалами преподавателя
+     */
+    public List<String> teacherNames() {
+        int teacherNamePartsAmount = this.teacherOrGroupName.split(" ").length;
+        String[] teacherNames = this.teacherOrGroupName.split(",");
+        List<String> finalTeacherNames = new ArrayList<>();
+        for (String teacherName : teacherNames) {
+            finalTeacherNames.add(teacherName.strip());
+        }
+        return teacherNamePartsAmount >= 2 ? finalTeacherNames : null;
     }
 
     public static int toInt(@NotNull SubGroup subGroup) {

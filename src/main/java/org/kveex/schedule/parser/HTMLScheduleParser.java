@@ -6,6 +6,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.kveex.AkttAPI;
+import org.kveex.schedule.SubGroup;
 import org.kveex.schedule.ScheduleGroup;
 import org.kveex.schedule.ScheduleItem;
 
@@ -24,6 +25,7 @@ public class HTMLScheduleParser {
     private Document document;
     private static final String URL = "https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html";
     private LocalDateTime editTime;
+    private static final List<String> staticRoomNames = List.of("библ", "маст.", "дист.");
 
     public HTMLScheduleParser() throws IOException {
         updateDocument();
@@ -134,6 +136,29 @@ public class HTMLScheduleParser {
         return groups;
     }
 
+    /**
+     * Собирает имена преподавателей из всех групп
+     * @return Список
+     */
+    public List<String> getAllTeachers() {
+        List<String> teacherNames = new ArrayList<>();
+        List<ScheduleGroup> scheduleGroups = getSchedule();
+
+        for (ScheduleGroup scheduleGroup : scheduleGroups) {
+            for (ScheduleItem scheduleItem : scheduleGroup.scheduleItems()) {
+                List<String> teacherName = scheduleItem.teacherNames();
+                if (teacherName == null) continue;
+                for (String name : teacherName) {
+                    if (name.isBlank()) continue;
+                    if (name.contains("указан")) continue;
+                    if (teacherNames.contains(name)) continue;
+                    teacherNames.add(name);
+                }
+            }
+        }
+        return teacherNames;
+    }
+
     private boolean isGroupExists(String groupName) {
         return getAllGroups().contains(groupName);
     }
@@ -235,7 +260,7 @@ public class HTMLScheduleParser {
         String subjectName;
         StringBuilder teacherName;
         String roomNumber;
-        ScheduleItem.SubGroup itemSubGroup = ScheduleItem.SubGroup.BOTH;
+        SubGroup itemSubGroup = SubGroup.BOTH;
 
         for (String subject : subjects) {
             String[] parts = subject.split(" ");
@@ -246,15 +271,15 @@ public class HTMLScheduleParser {
 
             for (String part : parts) {
                 if (part.trim().equals("1п")) {
-                    itemSubGroup = ScheduleItem.SubGroup.FIRST;
+                    itemSubGroup = SubGroup.FIRST;
                     break;
                 } else if (part.trim().contains("2п")) {
-                    itemSubGroup = ScheduleItem.SubGroup.SECOND;
+                    itemSubGroup = SubGroup.SECOND;
                     break;
                 }
             }
 
-            if (parts[lastPartIndex].contains("библ") || parts[lastPartIndex].matches("\\d+[аб]?(?:/\\d+[аб]?)?")) {
+            if (staticRoomNames.contains(parts[lastPartIndex]) || parts[lastPartIndex].matches("\\d+[аб]?(?:/\\d+[аб]?)?")) {
                 roomNumber = parts[lastPartIndex];
                 doubleRoomNumber = roomNumber.contains("/");
             } else {
@@ -263,7 +288,7 @@ public class HTMLScheduleParser {
 
             ScheduleItem staticCaseItem = checkForStaticCases(time, subject, roomNumber, itemSubGroup);
             if (staticCaseItem != null) {
-                return !staticCaseItem.subject().isEmpty() ? staticCaseItem : null;
+                return !staticCaseItem.subjectName().isEmpty() ? staticCaseItem : null;
             }
 
             int subjectNameEndIndex;
@@ -271,7 +296,7 @@ public class HTMLScheduleParser {
             int subGroupIndex = -1;
             for (int i = 0; i < parts.length; i++) {
                 if (parts[i].trim().equals("1п") || parts[i].trim().equals("2п")) {
-                    subGroupIndex = i;
+                    subGroupIndex = !subject.contains("замена") ? i : i + 1;
                     break;
                 }
             }
@@ -279,6 +304,15 @@ public class HTMLScheduleParser {
             if (subGroupIndex != -1) {
                 teacherName = new StringBuilder(parts[subGroupIndex + 1] + " " + parts[subGroupIndex + 2]);
                 subjectNameEndIndex = subGroupIndex;
+            } else if (roomNumber.equals("Не указан")) {
+                teacherName = new StringBuilder();
+                subjectNameEndIndex = lastPartIndex - 2;
+                if (lastPartIndex > 3) {
+                    teacherName.append(parts[lastPartIndex - 3]).append(" ").append(parts[lastPartIndex - 2]);
+                    subjectNameEndIndex = lastPartIndex - 4;
+                }
+                teacherName.append(parts[lastPartIndex - 1]).append(" ").append(parts[lastPartIndex]);
+
             } else {
                 teacherName = new StringBuilder();
                 subjectNameEndIndex = lastPartIndex - 2;
@@ -311,7 +345,7 @@ public class HTMLScheduleParser {
      * @param roomNumber Кабинет проведения учебной пары
      * @return Класс с информацией об особом случае учебной пары
      */
-    private static ScheduleItem checkForStaticCases(String time, String info, String roomNumber, ScheduleItem.SubGroup subGroup) {
+    private static ScheduleItem checkForStaticCases(String time, String info, String roomNumber, SubGroup subGroup) {
         String caseText = info.toLowerCase();
         String caseTime = time.toLowerCase();
         String[] parts = info.split(" ");
