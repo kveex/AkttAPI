@@ -13,11 +13,11 @@ public class ScheduleHandlerV2 {
     }
 
     public ScheduleGroup getStudentScheduleGroup(String group) {
-        return htmlScheduleParser.getScheduleGroup(group);
+        return htmlScheduleParser.getStudentScheduleGroup(group);
     }
 
     public ScheduleGroup getStudentScheduleGroup(String group, SubGroup subGroup) {
-        return htmlScheduleParser.getScheduleGroup(group).getSubGroup(subGroup);
+        return htmlScheduleParser.getStudentScheduleGroup(group).getSubGroup(subGroup);
     }
 
     public List<ScheduleGroup> getSchedule() {
@@ -29,8 +29,7 @@ public class ScheduleHandlerV2 {
     }
 
     public ScheduleGroup getTeacherScheduleGroup(String teacherName) {
-        String[] teacherNameParts = teacherName.split(" ");
-        return new ScheduleGroup("adasd", "wwww");
+        return htmlScheduleParser.getTeacherScheduleGroup(teacherName);
     }
 
     public List<String> getTeachersList() {

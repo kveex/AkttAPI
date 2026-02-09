@@ -1,6 +1,7 @@
 package org.kveex.schedule.parser;
 
 import kotlin.Pair;
+import org.jetbrains.annotations.NotNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -159,6 +160,49 @@ public class HTMLScheduleParser {
         return teacherNames;
     }
 
+    private boolean isTeacherExists(String teacherName) {
+        return getAllTeachers().contains(teacherName);
+    }
+
+    public ScheduleGroup getTeacherScheduleGroup(String teacherName) {
+        var schedule = getSchedule();
+        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(getScheduleDate().toString(), teacherName);
+
+        if (!isTeacherExists(teacherName)) return teacherScheduleGroup;
+
+        for (ScheduleGroup group : schedule) {
+            for (ScheduleItem item : group.scheduleItems()) {
+                if (!item.teacherOrGroupName().equals(teacherName)) continue;
+                ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupOrTeacherName(), item.roomNumber(), item.subGroup());
+                teacherScheduleGroup.add(newItem);
+            }
+        }
+
+        var teacherScheduleItems = sortScheduleItems(teacherScheduleGroup);
+
+        teacherScheduleGroup.replaceScheduleItems(teacherScheduleItems);
+
+        return teacherScheduleGroup;
+    }
+
+    private static @NotNull List<ScheduleItem> sortScheduleItems(ScheduleGroup teacherScheduleGroup) {
+        var teacherScheduleItems = teacherScheduleGroup.scheduleItems();
+
+        for (ScheduleItem item : teacherScheduleItems) {
+            int value = item.timeToInt();
+
+            for (int i = 0; i < teacherScheduleItems.size() - 1; i++) {
+                if (value < teacherScheduleItems.get(i).timeToInt()) {
+                    ScheduleItem tempItem = teacherScheduleItems.get(i);
+                    teacherScheduleItems.set(i, teacherScheduleItems.get(i + 1));
+                    teacherScheduleItems.set(i + 1, tempItem);
+                    break;
+                }
+            }
+        }
+        return teacherScheduleItems;
+    }
+
     private boolean isGroupExists(String groupName) {
         return getAllGroups().contains(groupName);
     }
@@ -171,20 +215,20 @@ public class HTMLScheduleParser {
         List<ScheduleGroup> scheduleGroups = new ArrayList<>();
         List<String> groupsList = getAllGroups();
         for (String group : groupsList) {
-            ScheduleGroup scheduleGroup = buildScheduleGroup(group);
+            ScheduleGroup scheduleGroup = buildStudentScheduleGroup(group);
             scheduleGroups.add(scheduleGroup);
         }
         return scheduleGroups;
     }
 
-    public ScheduleGroup getScheduleGroup(String groupName) {
+    public ScheduleGroup getStudentScheduleGroup(String groupName) {
         if (isGroupExists(groupName.toLowerCase())) {
-            return buildScheduleGroup(groupName.toLowerCase());
+            return buildStudentScheduleGroup(groupName.toLowerCase());
         }
         throw new IllegalArgumentException("Группа [%s] не найдена!".formatted(groupName));
     }
 
-    private ScheduleGroup buildScheduleGroup(String groupName) {
+    private ScheduleGroup buildStudentScheduleGroup(String groupName) {
         String scheduleDate = getScheduleDate().toString();
         ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate, groupName);
         var infoList = getTimeAndInfoForScheduleGroup(groupName);

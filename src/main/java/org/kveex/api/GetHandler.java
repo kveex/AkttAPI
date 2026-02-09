@@ -199,4 +199,42 @@ public class GetHandler {
         context.json(Map.of("teachers", teachers));
         AkttAPI.LOGGER.info("Запрос на список преподавателей");
     }
+
+    @OpenApi(
+            summary = "Выдаёт расписание для указанного преподавателя",
+            operationId = "getTeacherSchedule",
+            path = "/api/v2/schedule/teacher/{teacher}",
+            pathParams = {
+                    @OpenApiParam(
+                            name = "teacher",
+                            description = "Имя и инициалы преподавателя, должны соответствовать формату",
+                            example = "Маликов М.В.",
+                            required = true
+                    )
+            },
+            methods = HttpMethod.GET,
+            tags = {"Schedule"},
+            responses = {
+                    @OpenApiResponse(
+                            status = "200",
+                            content = {@OpenApiContent(from = ScheduleGroup.class)}),
+                    @OpenApiResponse(
+                            status = "404",
+                            description = "Группа не найдена"
+                    )
+            }
+    )
+    public static void getTeacherSchedule(ScheduleHandlerV2 scheduleHandler, Context context) {
+        String teacherName = context.pathParam("teacher");
+        try {
+            var sch = scheduleHandler.getTeacherScheduleGroup(teacherName);
+            context.status(HttpStatus.OK);
+            context.json(sch);
+            AkttAPI.LOGGER.info("Запрос на расписание для преподавателя {}", teacherName);
+        } catch (IllegalArgumentException e) {
+            context.status(HttpStatus.NOT_FOUND);
+            context.json(Map.of("error", e.toString()));
+            AkttAPI.LOGGER.error(e.toString());
+        }
+    }
 }

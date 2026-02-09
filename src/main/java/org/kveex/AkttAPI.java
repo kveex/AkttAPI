@@ -86,6 +86,7 @@ public class AkttAPI {
         .get("/api/v2/schedule/student/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/student/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/teachers", ctx -> GetHandler.getTeachersList(scheduleHandlerV2, ctx))
+        .get("/api/v2/schedule/teacher/{teacher}", ctx -> GetHandler.getTeacherSchedule(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/", ctx -> GetHandler.getSchedule(scheduleHandlerV2, ctx))
         .post("/api/v2/certificate-upload", PostHandler::handleCertificate);
 

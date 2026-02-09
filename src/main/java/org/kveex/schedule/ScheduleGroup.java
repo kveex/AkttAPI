@@ -3,13 +3,20 @@ package org.kveex.schedule;
 import java.util.ArrayList;
 import java.util.List;
 
+//TODO: Разделить преподавателя и группу в два разных значения
 public record ScheduleGroup(String scheduleDate, String groupOrTeacherName, List<ScheduleItem> scheduleItems) {
-    public ScheduleGroup(String scheduleDate, String group) {
-        this(scheduleDate, group, new ArrayList<>());
+    public ScheduleGroup(String scheduleDate, String groupOrTeacherName) {
+        this(scheduleDate, groupOrTeacherName, new ArrayList<>());
     }
 
     public void add(ScheduleItem scheduleItem) {
         this.scheduleItems.add(scheduleItem);
+    }
+
+    public void replaceScheduleItems(List<ScheduleItem> scheduleItems) {
+        for (int i = 0; i < scheduleItems.size(); i++) {
+            this.scheduleItems.set(i, scheduleItems.get(i));
+        }
     }
 
     public void combine(ScheduleGroup scheduleGroup) {

@@ -18,7 +18,6 @@ import java.util.List;
  * Класс предоставляет методы для создания и получения расписаний
  */
 public class ScheduleHandler {
-    //TODO: сделать возможность искать по имени преподавателя
     private static final int GROUP_TIME_COLUMN = 1;
     private static final int GROUP_SUBJECT_COLUMN = 2;
     private static final int GROUP_COLUMN_WIDTH = 3;

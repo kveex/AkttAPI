@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
+//TODO: Разделить преподавателя и группу в два разных значения
 public record ScheduleItem(String time, String subjectName, String teacherOrGroupName, String roomNumber, SubGroup subGroup) {
     public ScheduleItem(String time, String subjectName, String teacherOrGroupName, String roomNumber, SubGroup subGroup) {
         this.subjectName = subjectName;
@@ -43,14 +44,6 @@ public record ScheduleItem(String time, String subjectName, String teacherOrGrou
     }
 
     /**
-     * Метод для возвращения названия группы
-     * @return Строку названия группы
-     */
-    public String groupName() {
-        return this.teacherOrGroupName.contains("-") ? this.teacherOrGroupName : null;
-    }
-
-    /**
      * Метод для возвращения имени и инициалов преподавателя
      * @return пара строк с фамилией и инициалами преподавателя
      */
@@ -65,12 +58,19 @@ public record ScheduleItem(String time, String subjectName, String teacherOrGrou
     }
 
     public static int toInt(@NotNull SubGroup subGroup) {
-        int result;
-        switch (subGroup) {
-            case FIRST -> result = 1;
-            case SECOND -> result = 2;
-            default -> result = 0;
-        }
-        return result;
+        return switch (subGroup) {
+            case FIRST -> 1;
+            case SECOND -> 2;
+            default -> 0;
+        };
+    }
+
+    public int timeToInt() {
+        return switch (time) {
+            case "10:10 - 11:40", "[10:10 - 10:45 () 11:15 - 12:00]" -> 1;
+            case "12:10 - 13:40" -> 2;
+            case "13:50 - 15:20" -> 3;
+            default -> 0;
+        };
     }
 }
