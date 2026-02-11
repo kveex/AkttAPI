@@ -56,7 +56,7 @@ public class HTMLScheduleParser {
      * Собирает информацию об изменении документа, сохранённые в метадате
      * @return Дату и время обновления
      */
-    private LocalDateTime getScheduleEditDate() {
+    public LocalDateTime getScheduleEditDate() {
         Elements metaData = document.select("meta");
         String contentValue = null;
 

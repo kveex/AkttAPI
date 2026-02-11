@@ -3,6 +3,7 @@ package org.kveex.schedule;
 import org.kveex.schedule.parser.HTMLScheduleParser;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,6 +11,10 @@ public class ScheduleHandlerV2 {
     private final HTMLScheduleParser htmlScheduleParser;
     public ScheduleHandlerV2() throws IOException {
         htmlScheduleParser = new HTMLScheduleParser();
+    }
+
+    public LocalDate getScheduleDate() {
+        return htmlScheduleParser.getScheduleDate();
     }
 
     public ScheduleGroup getStudentScheduleGroup(String group) {

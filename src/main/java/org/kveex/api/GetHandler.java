@@ -143,6 +143,25 @@ public class GetHandler {
     }
 
     @OpenApi(
+            summary = "Выдаёт дату на которую рассчитано расписание",
+            operationId = "getScheduleDate",
+            path = "/api/v2/schedule/date",
+            methods = HttpMethod.GET,
+            tags = {"Schedule"},
+            responses = {
+                    @OpenApiResponse(
+                            status = "200"
+                    )
+            }
+    )
+    public static void getScheduleDate(ScheduleHandlerV2 scheduleHandler, Context context) {
+        String scheduleDate = scheduleHandler.getScheduleDate().toString();
+        context.status(HttpStatus.OK);
+        context.json(Map.of("scheduleDate", scheduleDate));
+        AkttAPI.LOGGER.info("Запрос на дату расписания");
+    }
+
+    @OpenApi(
             summary = "Выдаёт расписание всех групп, с обеими подгруппами",
             operationId = "getSchedule",
             path = "/api/v2/schedule/",
@@ -155,9 +174,10 @@ public class GetHandler {
             }
     )
     public static void getSchedule(ScheduleHandlerV2 scheduleHandler, Context context) {
-        var sch = scheduleHandler.getSchedule();
+        var schedule = scheduleHandler.getSchedule();
+        String scheduleDate = scheduleHandler.getScheduleDate().toString();
         context.status(HttpStatus.OK);
-        context.json(Map.of("schedule", sch));
+        context.json(Map.of("scheduleDate", scheduleDate, "schedule", schedule));
         AkttAPI.LOGGER.info("Запрос на полное расписание");
     }
 
@@ -196,7 +216,7 @@ public class GetHandler {
     public static void getTeachersList(ScheduleHandlerV2 scheduleHandler, Context context) {
         List<String> teachers = scheduleHandler.getTeachersList();
         context.status(HttpStatus.OK);
-        context.json(Map.of("teachers", teachers));
+        context.json(Map.of("teachersList", teachers));
         AkttAPI.LOGGER.info("Запрос на список преподавателей");
     }
 

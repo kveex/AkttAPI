@@ -45,8 +45,8 @@ public class PostHandler {
         context.status(HttpStatus.OK);
         AkttAPI.LOGGER.info(
                 "Заявление на справку отправлено от ({}, {}, {}) {} {} курс",
-                certificateItem.firstName(),
                 certificateItem.lastName(),
+                certificateItem.firstName(),
                 certificateItem.middleName(),
                 certificateItem.groupName(),
                 certificateItem.course().toString()

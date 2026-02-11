@@ -29,6 +29,7 @@ public record ScheduleGroup(String scheduleDate, String groupOrTeacherName, List
 
     public ScheduleGroup getSubGroup(SubGroup subGroup) {
         ScheduleGroup newScheduleGroup = new ScheduleGroup(this.scheduleDate, this.groupOrTeacherName);
+        if (subGroup == SubGroup.BOTH) return this;
         for (ScheduleItem scheduleItem : this.scheduleItems) {
             if (scheduleItem.subGroup() == subGroup || scheduleItem.subGroup() == SubGroup.BOTH) {
                 newScheduleGroup.add(scheduleItem);

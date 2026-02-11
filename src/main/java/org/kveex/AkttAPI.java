@@ -36,6 +36,7 @@ public class AkttAPI {
         repeatDelay = argsParser.getRepeatDelayMs();
     }
 
+    //TODO: Перенести таймер в конструктор обработчика расписания
     private static void makeScheduleHandler() {
         Timer timer = new Timer();
         try {
@@ -44,7 +45,7 @@ public class AkttAPI {
         } catch (IOException e) {
             throw new RuntimeException("ScheduleHandler broken!\n" + e);
         }
-        timer.schedule(new TimerTask() {
+        timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
                 try {
@@ -53,7 +54,7 @@ public class AkttAPI {
                     throw new RuntimeException(e);
                 }
             }
-        }, repeatDelay);
+        },1000, repeatDelay);
     }
 
     private static void startApp() {
@@ -82,12 +83,13 @@ public class AkttAPI {
         .get("/api/schedule/groups", ctx -> GetHandler.getGroupsList(ctx, scheduleHandler))
         .get("/api/schedule/{group}", ctx -> GetHandler.getScheduleBothSubGroups(ctx, scheduleHandler))
         .get("/api/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleDefinedSubGroup(ctx, scheduleHandler))
-        .get("api/v2/schedule/groups", ctx -> GetHandler.getGroupsList(scheduleHandlerV2, ctx))
+        .get("/api/v2/schedule/groups", ctx -> GetHandler.getGroupsList(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/student/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/student/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/teachers", ctx -> GetHandler.getTeachersList(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/teacher/{teacher}", ctx -> GetHandler.getTeacherSchedule(scheduleHandlerV2, ctx))
         .get("/api/v2/schedule/", ctx -> GetHandler.getSchedule(scheduleHandlerV2, ctx))
+        .get("/api/v2/schedule/date", ctx -> GetHandler.getScheduleDate(scheduleHandlerV2, ctx))
         .post("/api/v2/certificate-upload", PostHandler::handleCertificate);
 
         app.start(port);

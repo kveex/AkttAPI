@@ -136,6 +136,7 @@ public class ScheduleHandler {
      * @param subGroupNumber Номер подгруппы, может быть 0, для обеих подгрупп и 1 - 2 для конкретных
      * @return Класс со списком классов предметов, каждый из которых содержит в себе информацию об учебной паре
      */
+    @Deprecated
     public ScheduleGroup createSchedule(String groupName, int subGroupNumber) throws IllegalArgumentException{
         String scheduleDate = getScheduleDate().toString();
         ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate, groupName);
@@ -197,6 +198,7 @@ public class ScheduleHandler {
      * @see ScheduleHandler#createSchedule(String, int)
      * @return Группу с предметом или предметами (в зависимости от subGroupNumber и наличия предметов в info)
      */
+    @Deprecated
     private ScheduleGroup fillScheduleGroup(String groupName, String time, String info, int subGroupNumber) {
         String scheduleDate = getScheduleDate().toString();
         ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate, groupName);
