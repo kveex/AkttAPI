@@ -1,7 +1,7 @@
 package org.kveex.schedule;
 
-import org.jetbrains.annotations.NotNull;
-
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,26 +20,31 @@ public record ScheduleItem(String time, String subjectName, String teacherOrGrou
 
     private String setGoodTime(String time) {
         String goodTime = time;
+        boolean todayIsSaturday = LocalDate.now().getDayOfWeek() == DayOfWeek.SATURDAY;
         switch (time) {
             case "1,2": {
-                goodTime = "8:30 - 10:00";
+                goodTime = !todayIsSaturday ? "8:30 - 10:00" : "8:00 - 9:10";
                 break;
             }
             case "3,4": {
                 boolean isInSecondCampus = true;
                 try {
                     int roomNum = Integer.parseInt(roomNumber.replace("а", "").replace("б", ""));
-                    isInSecondCampus = roomNum > 40 && roomNum < 100;
+                    isInSecondCampus = roomNum > 35 && roomNum < 85;
                 } catch (NumberFormatException ignored) {}
+                if (todayIsSaturday) {
+                    goodTime = "9:20 - 10:30";
+                    break;
+                }
                 goodTime = isInSecondCampus ? "10:10 - 11:40" : "[10:10 - 10:45 () 11:15 - 12:00]";
                 break;
             }
             case "5,6": {
-                goodTime = "12:10 - 13:40";
+                goodTime = !todayIsSaturday ? "12:10 - 13:40" : "10:40 - 11:50";
                 break;
             }
             case "7,8": {
-                goodTime = "13:50 - 15:20";
+                goodTime = !todayIsSaturday ? "13:50 - 15:20" : "12:00 - 13:10";
                 break;
             }
         }
@@ -60,19 +65,11 @@ public record ScheduleItem(String time, String subjectName, String teacherOrGrou
         return teacherNamePartsAmount >= 2 ? finalTeacherNames : null;
     }
 
-    public static int toInt(@NotNull SubGroup subGroup) {
-        return switch (subGroup) {
-            case FIRST -> 1;
-            case SECOND -> 2;
-            default -> 0;
-        };
-    }
-
     public int timeToInt() {
         return switch (time) {
-            case "10:10 - 11:40", "[10:10 - 10:45 () 11:15 - 12:00]" -> 1;
-            case "12:10 - 13:40" -> 2;
-            case "13:50 - 15:20" -> 3;
+            case "10:10 - 11:40", "[10:10 - 10:45 () 11:15 - 12:00]", "9:20 - 10:30" -> 1;
+            case "12:10 - 13:40", "10:40 - 11:50"-> 2;
+            case "13:50 - 15:20", "12:00 - 13:10" -> 3;
             default -> 0;
         };
     }

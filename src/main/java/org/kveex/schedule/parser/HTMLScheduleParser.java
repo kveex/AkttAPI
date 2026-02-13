@@ -18,6 +18,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class HTMLScheduleParser {
     private static final int GROUP_TIME_COLUMN = 1;
@@ -309,18 +310,13 @@ public class HTMLScheduleParser {
      */
     public static List<ScheduleItem> buildScheduleItem(String time, String info) {
         List<ScheduleItem> result = new ArrayList<>();
-        //FIXME: Выяснить все методы разделения одного предмета на подгруппы и попытаться их учесть,
-        // сейчас всё сломано из-за того, что обычний минут "-" используется и в разделении на пдгруппый,
-        // и в написании одного из предметов
-        // чатжпт пмоги :_(
-        String[] subjects = info.split("\\s*[--–]\\s*");
+        String[] subjects = info.split("\\s*–\\s*");
         String subjectName;
-        StringBuilder teacherName;
+        StringBuilder teacherName = new StringBuilder();
         String roomNumber;
-        SubGroup itemSubGroup = SubGroup.BOTH;
+        SubGroup itemSubGroup = subjects.length > 1 ? SubGroup.FIRST : SubGroup.BOTH;
 
         for (String subject : subjects) {
-            System.out.println(subject);
             String[] parts = subject.split(" ");
             int lastPartIndex = parts.length - 1;
             boolean doubleRoomNumber = false;
@@ -337,8 +333,23 @@ public class HTMLScheduleParser {
                 }
             }
 
-            if (staticRoomNames.contains(parts[lastPartIndex]) || parts[lastPartIndex].matches("\\d+[аб]?(?:/\\d+[аб]?)?")) {
+            Pattern usualRoomPattern = Pattern.compile("\\d+[аб]?(?:/\\d+[аб]?)?");
+
+            boolean haveStaticName = staticRoomNames.contains(parts[lastPartIndex]);
+            boolean matchesUsualPattern = parts[lastPartIndex].matches(usualRoomPattern.pattern());
+            String roomNumberCombinedWithTeacher = "";
+
+            for (String teacherPart : parts[lastPartIndex].split("\\.")) {
+                if (!teacherPart.matches(usualRoomPattern.pattern())) continue;
+                roomNumberCombinedWithTeacher = teacherPart;
+            }
+
+            if (haveStaticName || matchesUsualPattern) {
                 roomNumber = parts[lastPartIndex];
+                doubleRoomNumber = roomNumber.contains("/");
+            } else if (!roomNumberCombinedWithTeacher.isEmpty()) {
+                //TODO: Попробовать сделать так, чтобы кабинет исключался из части с названием преподавателя
+                roomNumber = roomNumberCombinedWithTeacher;
                 doubleRoomNumber = roomNumber.contains("/");
             } else {
                 roomNumber = "Не указан";
@@ -359,29 +370,36 @@ public class HTMLScheduleParser {
                 }
             }
 
-            //TODO: Переделать то, как собирается имя учителя с точных значений на цикл
-
             if (subGroupIndex != -1) {
-                teacherName = new StringBuilder(parts[subGroupIndex + 1] + " " + parts[subGroupIndex + 2]);
+                for (int i = 1; i <= 2; i++) {
+                    String part = parts[subGroupIndex + i];
+                    teacherName.append(part).append(" ");
+                }
                 subjectNameEndIndex = subGroupIndex;
             } else if (roomNumber.equals("Не указан")) {
-                teacherName = new StringBuilder();
-                subjectNameEndIndex = lastPartIndex - 1;
-                if (lastPartIndex > 3) {
-                    teacherName.append(parts[lastPartIndex - 3]).append(" ").append(parts[lastPartIndex - 2]).append(" ");
-                    subjectNameEndIndex = lastPartIndex - 3;
+                int startIndex = lastPartIndex > 3 ? 3 : 1;
+                for (int i = startIndex; i >= 0; i--) {
+                    String part = parts[lastPartIndex - i];
+                    teacherName.append(part).append(" ");
                 }
-                teacherName.append(parts[lastPartIndex - 1]).append(" ").append(parts[lastPartIndex]);
+                subjectNameEndIndex = lastPartIndex - startIndex;
 
+            } else if (parts.length <= 2) {
+                subjectNameEndIndex = lastPartIndex;
+            } else if (parts.length == 3 && roomNumber.matches(usualRoomPattern.pattern())) {
+                int startIndex = 1;
+                for (int i = startIndex; i >= 0; i--) {
+                    String part = parts[lastPartIndex - i];
+                    teacherName.append(part).append(" ");
+                }
+                subjectNameEndIndex = lastPartIndex - startIndex;
             } else {
-                teacherName = new StringBuilder();
-                subjectNameEndIndex = lastPartIndex - 2;
-                if (doubleRoomNumber) {
-                    teacherName.append(parts[lastPartIndex - 4]).append(" ").append(parts[lastPartIndex - 3]).append(" ");
-                    subjectNameEndIndex = lastPartIndex - 4;
+                int startIndex = doubleRoomNumber ? 4 : 2;
+                for (int i = startIndex; i > 0; i--) {
+                    String part = parts[lastPartIndex - i];
+                    teacherName.append(part).append(" ");
                 }
-                teacherName.append(parts[lastPartIndex - 2]).append(" ").append(parts[lastPartIndex - 1]);
-
+                subjectNameEndIndex = lastPartIndex - startIndex;
             }
 
             for (int i = 0; i < subjectNameEndIndex; i++) {
@@ -393,7 +411,7 @@ public class HTMLScheduleParser {
 
             if (teacherName.toString().isEmpty()) teacherName = new StringBuilder("Не указан");
 
-            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, teacherName.toString(), roomNumber, itemSubGroup);
+            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, teacherName.toString().trim(), roomNumber, itemSubGroup);
             result.add(scheduleItem);
         }
         return result;
