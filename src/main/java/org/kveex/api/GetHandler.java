@@ -6,7 +6,6 @@ import io.javalin.openapi.*;
 import org.kveex.AkttAPI;
 import org.kveex.schedule.SubGroup;
 import org.kveex.schedule.ScheduleGroup;
-import org.kveex.schedule.ScheduleHandler;
 import org.kveex.schedule.ScheduleHandlerV2;
 
 import java.util.ArrayList;
@@ -19,49 +18,10 @@ public class GetHandler {
         context.json(Map.of("message", "Привет от АКТТ REST API"));
     }
 
-    public static void getScheduleBothSubGroups(Context context, ScheduleHandler scheduleHandler) {
-        String groupName = context.pathParam("group");
-        AkttAPI.LOGGER.info("Запрос расписания для группы {}, на все подгруппы", groupName);
-        sendScheduleGroup(scheduleHandler, context, groupName, 0);
-    }
-
-    public static void getScheduleDefinedSubGroup(Context context, ScheduleHandler scheduleHandler) {
-        String groupName = context.pathParam("group");
-        int subGroup = Integer.parseInt(context.pathParam("subGroup"));
-
-        if (subGroup > 2) {
-            context.status(HttpStatus.BAD_REQUEST);
-            context.json(Map.of("error", "Неверно указанная подгруппа"));
-            AkttAPI.LOGGER.error("Был выполнен неправильный запрос, подгруппа указана больше возможной или отрицательной");
-            return;
-        }
-        AkttAPI.LOGGER.info("Запрос расписания для группы {}, {} подгруппы", groupName, subGroup);
-        sendScheduleGroup(scheduleHandler, context, groupName, subGroup);
-    }
-
-    private static void sendScheduleGroup(ScheduleHandler scheduleHandler, Context context, String groupName, int subGroup) {
-        ScheduleGroup scheduleGroup;
-
-        try {
-            scheduleGroup = scheduleHandler.createSchedule(groupName, subGroup);
-            context.json(scheduleGroup);
-        } catch (IllegalArgumentException e) {
-            context.status(HttpStatus.NOT_FOUND);
-            context.json(Map.of("error", e.toString()));
-            AkttAPI.LOGGER.error(e.toString());
-        }
-    }
-
-    public static void getGroupsList(Context context, ScheduleHandler scheduleHandler) {
-        List<String> groups = scheduleHandler.getAllGroups();
-        AkttAPI.LOGGER.info("Запрос на список групп");
-        context.json(Map.of("groupsList", groups));
-    }
-
     @OpenApi(
             summary = "Выдаёт расписание для указанной группы и подгруппы",
             operationId = "getScheduleGroupDefinedSubGroup",
-            path = "/api/v2/schedule/student/{group}/{subGroup}",
+            path = "/api/schedule/student/{group}/{subGroup}",
             pathParams = {
                     @OpenApiParam(
                             name = "group",
@@ -107,7 +67,7 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт расписание для указанной группы с обеими подгруппами",
             operationId = "getScheduleGroupBothSubGroups",
-            path = "/api/v2/schedule/student/{group}",
+            path = "/api/schedule/student/{group}",
             pathParams = {
                     @OpenApiParam(
                             name = "group",
@@ -145,7 +105,7 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт дату на которую рассчитано расписание",
             operationId = "getScheduleDate",
-            path = "/api/v2/schedule/date",
+            path = "/api/schedule/date",
             methods = HttpMethod.GET,
             tags = {"Schedule"},
             responses = {
@@ -164,7 +124,7 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт расписание всех групп, с обеими подгруппами",
             operationId = "getSchedule",
-            path = "/api/v2/schedule/",
+            path = "/api/schedule/",
             methods = HttpMethod.GET,
             tags = {"Schedule"},
             responses = {
@@ -184,7 +144,7 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт список названий всех групп",
             operationId = "getGroupsList",
-            path = "/api/v2/schedule/groups",
+            path = "/api/schedule/groups",
             methods = HttpMethod.GET,
             tags = {"Schedule"},
             responses = {
@@ -203,7 +163,7 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт список всех преподавателей",
             operationId = "getTeachersList",
-            path = "/api/v2/schedule/teachers",
+            path = "/api/schedule/teachers",
             methods = HttpMethod.GET,
             tags = {"Schedule"},
             responses = {
@@ -223,7 +183,7 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт расписание для указанного преподавателя",
             operationId = "getTeacherSchedule",
-            path = "/api/v2/schedule/teacher/{teacher}",
+            path = "/api/schedule/teacher/{teacher}",
             pathParams = {
                     @OpenApiParam(
                             name = "teacher",

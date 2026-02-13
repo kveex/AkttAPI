@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class HTMLScheduleParser {
@@ -26,11 +27,10 @@ public class HTMLScheduleParser {
     private Document document;
     private static final String URL = "https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html";
     private LocalDateTime editTime;
-    private static final List<String> staticRoomNames = List.of("библ", "маст.", "дист.");
+    private static final List<String> staticRoomNames = List.of("библ.", "маст.", "дист.");
 
     public HTMLScheduleParser() throws IOException {
         updateDocument();
-        editTime = getScheduleEditDate();
     }
 
     /**
@@ -39,16 +39,23 @@ public class HTMLScheduleParser {
     public void updateDocument() throws IOException {
         this.document = Jsoup.connect(URL).get();
         LocalDateTime newEditTime = getScheduleEditDate();
+
         if (newEditTime == null) {
             AkttAPI.LOGGER.error("Не удалось получить время изменения документа, но он всё равно обновлён!");
             return;
         }
-        if (editTime == null) return;
+
+        if (editTime == null) {
+            editTime = getScheduleEditDate();
+            AkttAPI.LOGGER.info("Парсер скачал и прочитал HTML документ, момент изменения: {}", editTime);
+            return;
+        }
+
         if (newEditTime.isAfter(editTime)) {
-            AkttAPI.LOGGER.info("HTML скачан, документ обновлён");
+            AkttAPI.LOGGER.info("Новый HTML документ с моментом изменения: {}", newEditTime);
             editTime = newEditTime;
         } else {
-            AkttAPI.LOGGER.info("HTML скачан, обновлений документа нет");
+            AkttAPI.LOGGER.info("HTML документ не обновлён, момент изменения: {}", editTime);
         }
     }
 
@@ -130,6 +137,7 @@ public class HTMLScheduleParser {
             for (int i = 0; i < 9; i+=3) {
                 String group = cells.get(i).text().toLowerCase();
                 if (group.isBlank() || group.contains("группа")) continue;
+                if (group.contains("дистант")) group = group.replace("дистант", "").trim();
                 groups.add(group);
             }
         }
@@ -233,8 +241,8 @@ public class HTMLScheduleParser {
         ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate, groupName);
         var infoList = getTimeAndInfoForScheduleGroup(groupName);
         for (Pair<String, String> info : infoList) {
-            ScheduleItem scheduleItem = buildScheduleItem(info.getFirst(), info.getSecond());
-            if (scheduleItem != null) scheduleGroup.add(scheduleItem);
+            List<ScheduleItem> scheduleItems = buildScheduleItem(info.getFirst(), info.getSecond());
+            scheduleGroup.addAll(scheduleItems);
         }
         return scheduleGroup;
     }
@@ -283,8 +291,8 @@ public class HTMLScheduleParser {
                 String info = cells.get(cellIndex + GROUP_SUBJECT_COLUMN).text().trim();
 
                 if (!time.isBlank() && !info.isBlank()) {
-                    if (info.equals("-")) {
-                        info = "Нет пары";
+                    if (info.trim().equals("-")) {
+                        info = "нет пары";
                     }
                     timeAndInfoList.add(new Pair<>(time, info));
                 }
@@ -299,14 +307,20 @@ public class HTMLScheduleParser {
      * @param info Информация об учебной паре (Название предмета, Преподаватель, кабинет)
      * @return Класс с информацией об учебной паре
      */
-    public static ScheduleItem buildScheduleItem(String time, String info) {
-        String[] subjects = info.split(" –");
+    public static List<ScheduleItem> buildScheduleItem(String time, String info) {
+        List<ScheduleItem> result = new ArrayList<>();
+        //FIXME: Выяснить все методы разделения одного предмета на подгруппы и попытаться их учесть,
+        // сейчас всё сломано из-за того, что обычний минут "-" используется и в разделении на пдгруппый,
+        // и в написании одного из предметов
+        // чатжпт пмоги :_(
+        String[] subjects = info.split("\\s*[--–]\\s*");
         String subjectName;
         StringBuilder teacherName;
         String roomNumber;
         SubGroup itemSubGroup = SubGroup.BOTH;
 
         for (String subject : subjects) {
+            System.out.println(subject);
             String[] parts = subject.split(" ");
             int lastPartIndex = parts.length - 1;
             boolean doubleRoomNumber = false;
@@ -332,7 +346,7 @@ public class HTMLScheduleParser {
 
             ScheduleItem staticCaseItem = checkForStaticCases(time, subject, roomNumber, itemSubGroup);
             if (staticCaseItem != null) {
-                return !staticCaseItem.subjectName().isEmpty() ? staticCaseItem : null;
+                return Collections.singletonList(staticCaseItem);
             }
 
             int subjectNameEndIndex;
@@ -345,15 +359,17 @@ public class HTMLScheduleParser {
                 }
             }
 
+            //TODO: Переделать то, как собирается имя учителя с точных значений на цикл
+
             if (subGroupIndex != -1) {
                 teacherName = new StringBuilder(parts[subGroupIndex + 1] + " " + parts[subGroupIndex + 2]);
                 subjectNameEndIndex = subGroupIndex;
             } else if (roomNumber.equals("Не указан")) {
                 teacherName = new StringBuilder();
-                subjectNameEndIndex = lastPartIndex - 2;
+                subjectNameEndIndex = lastPartIndex - 1;
                 if (lastPartIndex > 3) {
-                    teacherName.append(parts[lastPartIndex - 3]).append(" ").append(parts[lastPartIndex - 2]);
-                    subjectNameEndIndex = lastPartIndex - 4;
+                    teacherName.append(parts[lastPartIndex - 3]).append(" ").append(parts[lastPartIndex - 2]).append(" ");
+                    subjectNameEndIndex = lastPartIndex - 3;
                 }
                 teacherName.append(parts[lastPartIndex - 1]).append(" ").append(parts[lastPartIndex]);
 
@@ -370,16 +386,17 @@ public class HTMLScheduleParser {
 
             for (int i = 0; i < subjectNameEndIndex; i++) {
                 String part = parts[i];
-                if (!part.equals("1п")) subjectNameBuilder.append(parts[i]).append(" ");
+                subjectNameBuilder.append(part).append(" ");
             }
 
             subjectName = subjectNameBuilder.toString().trim();
 
             if (teacherName.toString().isEmpty()) teacherName = new StringBuilder("Не указан");
 
-            return new ScheduleItem(time, subjectName, teacherName.toString(), roomNumber, itemSubGroup);
+            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, teacherName.toString(), roomNumber, itemSubGroup);
+            result.add(scheduleItem);
         }
-        return null;
+        return result;
     }
 
     /**
@@ -396,7 +413,7 @@ public class HTMLScheduleParser {
         StringBuilder teacherName = new StringBuilder();
 
         if (caseText.contains("нет пары")) {
-            return new ScheduleItem(time, "", "", roomNumber, subGroup);
+            return new ScheduleItem(time, "Нет пары", "Не указан", roomNumber, subGroup);
         }
 
         if (caseText.contains("о важном")) {

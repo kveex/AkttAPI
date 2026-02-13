@@ -13,6 +13,10 @@ public record ScheduleGroup(String scheduleDate, String groupOrTeacherName, List
         this.scheduleItems.add(scheduleItem);
     }
 
+    public void addAll(List<ScheduleItem> scheduleItems) {
+        this.scheduleItems.addAll(scheduleItems);
+    }
+
     public void replaceScheduleItems(List<ScheduleItem> scheduleItems) {
         for (int i = 0; i < scheduleItems.size(); i++) {
             this.scheduleItems.set(i, scheduleItems.get(i));

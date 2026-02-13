@@ -11,7 +11,7 @@ public class PostHandler {
     @OpenApi(
             summary = "Принимает информацию о заявке на справку",
             operationId = "handleCertificate",
-            path = "/api/v2/certificate-upload",
+            path = "/api/certificate-upload",
             requestBody = @OpenApiRequestBody(
                     content = @OpenApiContent(
                             from = CertificateItem.class,

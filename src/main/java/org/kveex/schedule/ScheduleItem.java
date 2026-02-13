@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 //TODO: Разделить преподавателя и группу в два разных значения
+//TODO: Добавить Enum который будет указывать тип итогового предмета:
+// OK - всё в порядке, информация есть,
+// EMPTY - нет пары или ничего не указано
 public record ScheduleItem(String time, String subjectName, String teacherOrGroupName, String roomNumber, SubGroup subGroup) {
     public ScheduleItem(String time, String subjectName, String teacherOrGroupName, String roomNumber, SubGroup subGroup) {
         this.subjectName = subjectName;

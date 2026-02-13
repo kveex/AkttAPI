@@ -3,25 +3,22 @@ package org.kveex;
 import io.javalin.Javalin;
 import io.javalin.openapi.plugin.OpenApiPlugin;
 import io.javalin.openapi.plugin.swagger.SwaggerPlugin;
+import io.javalin.util.JavalinBindException;
 import org.kveex.api.ArgsParser;
 import org.kveex.api.GetHandler;
 import org.kveex.api.PostHandler;
-import org.kveex.schedule.ScheduleHandler;
 import org.kveex.schedule.ScheduleHandlerV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class AkttAPI {
     public static final String ID = "AKTT_API";
     public static final Logger LOGGER = LoggerFactory.getLogger(ID);
     private static int port;
     private static int repeatDelay;
-    private static ScheduleHandler scheduleHandler;
-    private static ScheduleHandlerV2 scheduleHandlerV2;
+    private static ScheduleHandlerV2 scheduleHandler;
 
     public static void main(String[] args) {
         setArgs(args);
@@ -36,25 +33,12 @@ public class AkttAPI {
         repeatDelay = argsParser.getRepeatDelayMs();
     }
 
-    //TODO: Перенести таймер в конструктор обработчика расписания
     private static void makeScheduleHandler() {
-        Timer timer = new Timer();
         try {
-            scheduleHandler = new ScheduleHandler();
-            scheduleHandlerV2 = new ScheduleHandlerV2();
+            scheduleHandler = new ScheduleHandlerV2(repeatDelay);
         } catch (IOException e) {
             throw new RuntimeException("ScheduleHandler broken!\n" + e);
         }
-        timer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                try {
-                    scheduleHandler.updateDocument();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        },1000, repeatDelay);
     }
 
     private static void startApp() {
@@ -66,8 +50,8 @@ public class AkttAPI {
                                         (version, definition) -> definition.withInfo(
                                                 info -> {
                                     info.setTitle("AKTT Schedule API");
-                                    info.setVersion("1.1");
-                                    info.setDescription("API для получения расписания занятий");
+                                    info.setVersion("1.1.1");
+                                    info.setDescription("API для взаимодействия");
                                 }))
                         )
                 );
@@ -80,19 +64,21 @@ public class AkttAPI {
             }
         )
         .get("/", GetHandler::showTest)
-        .get("/api/schedule/groups", ctx -> GetHandler.getGroupsList(ctx, scheduleHandler))
-        .get("/api/schedule/{group}", ctx -> GetHandler.getScheduleBothSubGroups(ctx, scheduleHandler))
-        .get("/api/schedule/{group}/{subGroup}", ctx -> GetHandler.getScheduleDefinedSubGroup(ctx, scheduleHandler))
-        .get("/api/v2/schedule/groups", ctx -> GetHandler.getGroupsList(scheduleHandlerV2, ctx))
-        .get("/api/v2/schedule/student/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandlerV2, ctx))
-        .get("/api/v2/schedule/student/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandlerV2, ctx))
-        .get("/api/v2/schedule/teachers", ctx -> GetHandler.getTeachersList(scheduleHandlerV2, ctx))
-        .get("/api/v2/schedule/teacher/{teacher}", ctx -> GetHandler.getTeacherSchedule(scheduleHandlerV2, ctx))
-        .get("/api/v2/schedule/", ctx -> GetHandler.getSchedule(scheduleHandlerV2, ctx))
-        .get("/api/v2/schedule/date", ctx -> GetHandler.getScheduleDate(scheduleHandlerV2, ctx))
-        .post("/api/v2/certificate-upload", PostHandler::handleCertificate);
+        .get("/api/schedule/groups", ctx -> GetHandler.getGroupsList(scheduleHandler, ctx))
+        .get("/api/schedule/student/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandler, ctx))
+        .get("/api/schedule/student/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandler, ctx))
+        .get("/api/schedule/teachers", ctx -> GetHandler.getTeachersList(scheduleHandler, ctx))
+        .get("/api/schedule/teacher/{teacher}", ctx -> GetHandler.getTeacherSchedule(scheduleHandler, ctx))
+        .get("/api/schedule/", ctx -> GetHandler.getSchedule(scheduleHandler, ctx))
+        .get("/api/schedule/date", ctx -> GetHandler.getScheduleDate(scheduleHandler, ctx))
+        .post("/api/certificate-upload", PostHandler::handleCertificate);
 
-        app.start(port);
+        try {
+            app.start(port);
+        } catch (JavalinBindException ignored) {
+            LOGGER.error("Порт {} уже используется другим процессом!!! Убедитесь, что никакие другие процессы не используют этот порт и попробуйте снова", port);
+            System.exit(1);
+        }
 
         LOGGER.info("API запущено на порту: {}", port);
         LOGGER.info("OpenAPI спецификация: http://localhost:{}/openapi", port);

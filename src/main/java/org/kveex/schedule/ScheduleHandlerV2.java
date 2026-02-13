@@ -6,11 +6,28 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class ScheduleHandlerV2 {
     private final HTMLScheduleParser htmlScheduleParser;
-    public ScheduleHandlerV2() throws IOException {
+    public ScheduleHandlerV2(int repeatDelay) throws IOException {
         htmlScheduleParser = new HTMLScheduleParser();
+        startUpdateCycle(repeatDelay);
+    }
+
+    private void startUpdateCycle(int repeatDelay) {
+        Timer timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    htmlScheduleParser.updateDocument();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        },1000, repeatDelay);
     }
 
     public LocalDate getScheduleDate() {
