@@ -29,6 +29,7 @@ public class HTMLScheduleParser {
     private static final String URL = "https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html";
     private LocalDateTime editTime;
     private static final List<String> staticRoomNames = List.of("библ.", "маст.", "дист.");
+    private static final Pattern usualRoomPattern = Pattern.compile("\\d+[аб]?(?:/\\d+[аб]?)?");
 
     public HTMLScheduleParser() throws IOException {
         updateDocument();
@@ -312,7 +313,7 @@ public class HTMLScheduleParser {
         List<ScheduleItem> result = new ArrayList<>();
         String[] subjects = info.split("\\s*–\\s*");
         String subjectName;
-        StringBuilder teacherName = new StringBuilder();
+        String teacherName;
         String roomNumber;
         SubGroup itemSubGroup = subjects.length > 1 ? SubGroup.FIRST : SubGroup.BOTH;
 
@@ -333,8 +334,6 @@ public class HTMLScheduleParser {
                 }
             }
 
-            Pattern usualRoomPattern = Pattern.compile("\\d+[аб]?(?:/\\d+[аб]?)?");
-
             boolean haveStaticName = staticRoomNames.contains(parts[lastPartIndex]);
             boolean matchesUsualPattern = parts[lastPartIndex].matches(usualRoomPattern.pattern());
             String roomNumberCombinedWithTeacher = "";
@@ -348,7 +347,6 @@ public class HTMLScheduleParser {
                 roomNumber = parts[lastPartIndex];
                 doubleRoomNumber = roomNumber.contains("/");
             } else if (!roomNumberCombinedWithTeacher.isEmpty()) {
-                //TODO: Попробовать сделать так, чтобы кабинет исключался из части с названием преподавателя
                 roomNumber = roomNumberCombinedWithTeacher;
                 doubleRoomNumber = roomNumber.contains("/");
             } else {
@@ -360,7 +358,6 @@ public class HTMLScheduleParser {
                 return Collections.singletonList(staticCaseItem);
             }
 
-            int subjectNameEndIndex;
 
             int subGroupIndex = -1;
             for (int i = 0; i < parts.length; i++) {
@@ -370,38 +367,10 @@ public class HTMLScheduleParser {
                 }
             }
 
-            if (subGroupIndex != -1) {
-                for (int i = 1; i <= 2; i++) {
-                    String part = parts[subGroupIndex + i];
-                    teacherName.append(part).append(" ");
-                }
-                subjectNameEndIndex = subGroupIndex;
-            } else if (roomNumber.equals("Не указан")) {
-                int startIndex = lastPartIndex > 3 ? 3 : 1;
-                for (int i = startIndex; i >= 0; i--) {
-                    String part = parts[lastPartIndex - i];
-                    teacherName.append(part).append(" ");
-                }
-                subjectNameEndIndex = lastPartIndex - startIndex;
+            var teacherNameInfo = makeTeacherName(parts, roomNumber, subGroupIndex, lastPartIndex, doubleRoomNumber);
 
-            } else if (parts.length <= 2) {
-                subjectNameEndIndex = lastPartIndex;
-            } else if (parts.length == 3 && roomNumber.matches(usualRoomPattern.pattern())) {
-                int startIndex = 1;
-                for (int i = startIndex; i >= 0; i--) {
-                    String part = parts[lastPartIndex - i];
-                    teacherName.append(part).append(" ");
-                }
-                subjectNameEndIndex = lastPartIndex - startIndex;
-            } else {
-                int startIndex = doubleRoomNumber ? 4 : 2;
-                for (int i = startIndex; i > 0; i--) {
-                    String part = parts[lastPartIndex - i];
-                    teacherName.append(part).append(" ");
-                }
-                subjectNameEndIndex = lastPartIndex - startIndex;
-            }
-
+            teacherName = teacherNameInfo.getFirst();
+            int subjectNameEndIndex = teacherNameInfo.getSecond();
             for (int i = 0; i < subjectNameEndIndex; i++) {
                 String part = parts[i];
                 subjectNameBuilder.append(part).append(" ");
@@ -409,12 +378,70 @@ public class HTMLScheduleParser {
 
             subjectName = subjectNameBuilder.toString().trim();
 
-            if (teacherName.toString().isEmpty()) teacherName = new StringBuilder("Не указан");
+            if (teacherName.isEmpty()) teacherName = "Не указан";
 
-            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, teacherName.toString().trim(), roomNumber, itemSubGroup);
+            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, teacherName.trim(), roomNumber, itemSubGroup);
             result.add(scheduleItem);
         }
         return result;
+    }
+
+    /**
+     * Метод собирает имя преподавателя и вычисляет конечный индекс для формирования названия предмета
+     * @param parts Информация обо всём предмете разделённая на части
+     * @param roomNumber Номер кабинета
+     * @param subGroupIndex Индекс части с указанием подгруппы в информации
+     * @param lastPartIndex Индекс последней части в информации
+     * @param doubleRoomNumber Указан ли номер кабинета, как бы через символ "/"
+     * @return Пару с фамилией и инициалами преподавателя в виде строки и конечный индекс для формирования названия предмета в виде числа
+     */
+    private static Pair<String, Integer> makeTeacherName(String[] parts, String roomNumber, int subGroupIndex, int lastPartIndex, boolean doubleRoomNumber) {
+        StringBuilder tempTeacherName = new StringBuilder();
+        StringBuilder teacherName = new StringBuilder();
+        int subjectNameEndIndex;
+
+        //Имя преподавателя формируется до индекса с указанием подгруппы
+        if (subGroupIndex != -1) {
+            for (int i = 1; i <= 2; i++) {
+                String part = parts[subGroupIndex + i];
+                tempTeacherName.append(part).append(" ");
+            }
+            subjectNameEndIndex = subGroupIndex;
+        //Сдвигает формирование имени преподавателя, если номера комнаты нет, чтобы ничего не сломалось
+        } else if (roomNumber.equals("Не указан")) {
+            int startIndex = lastPartIndex > 3 ? 3 : 1;
+            for (int i = startIndex; i >= 0; i--) {
+                String part = parts[lastPartIndex - i];
+                tempTeacherName.append(part).append(" ");
+            }
+            subjectNameEndIndex = lastPartIndex - startIndex;
+        //Этот вариант предназначен для случая, когда указан только предмет, в большинстве случаев
+        } else if (parts.length <= 2) {
+            subjectNameEndIndex = lastPartIndex;
+        //Этот вариант предназначен для случая, когда указаны предмет и преподаватель, но номер слился с инициалами
+        } else if (parts.length == 3 && roomNumber.matches(usualRoomPattern.pattern())) {
+            int startIndex = 1;
+            for (int i = startIndex; i >= 0; i--) {
+                String part = parts[lastPartIndex - i];
+                tempTeacherName.append(part).append(" ");
+            }
+            subjectNameEndIndex = lastPartIndex - startIndex;
+        } else {
+            int startIndex = doubleRoomNumber ? 4 : 2;
+            for (int i = startIndex; i > 0; i--) {
+                String part = parts[lastPartIndex - i];
+                tempTeacherName.append(part).append(" ");
+            }
+            subjectNameEndIndex = lastPartIndex - startIndex;
+        }
+
+        //Цикл вычищает номер кабинета из инициалов преподавателя
+        for (String teacherPart : tempTeacherName.toString().trim().split("\\.")) {
+            if (teacherPart.matches(usualRoomPattern.pattern())) break;
+            teacherName.append(teacherPart).append(".");
+        }
+
+        return new Pair<>(teacherName.toString(), subjectNameEndIndex);
     }
 
     /**

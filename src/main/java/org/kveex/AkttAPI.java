@@ -37,7 +37,8 @@ public class AkttAPI {
         try {
             scheduleHandler = new ScheduleHandlerV2(repeatDelay);
         } catch (IOException e) {
-            throw new RuntimeException("ScheduleHandler broken!\n" + e);
+            LOGGER.error("ScheduleHandler сломан! Ошибка: {}", e.toString());
+            System.exit(1);
         }
     }
 
@@ -77,7 +78,7 @@ public class AkttAPI {
             app.start(port);
         } catch (JavalinBindException ignored) {
             LOGGER.error("Порт {} уже используется другим процессом!!! Убедитесь, что никакие другие процессы не используют этот порт и попробуйте снова", port);
-            System.exit(1);
+            System.exit(2);
         }
 
         LOGGER.info("API запущено на порту: {}", port);

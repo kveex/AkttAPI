@@ -68,7 +68,7 @@ public record ScheduleItem(String time, String subjectName, String teacherOrGrou
     public int timeToInt() {
         return switch (time) {
             case "10:10 - 11:40", "[10:10 - 10:45 () 11:15 - 12:00]", "9:20 - 10:30" -> 1;
-            case "12:10 - 13:40", "10:40 - 11:50"-> 2;
+            case "12:10 - 13:40", "10:40 - 11:50" -> 2;
             case "13:50 - 15:20", "12:00 - 13:10" -> 3;
             default -> 0;
         };
