@@ -9,13 +9,15 @@ import java.util.List;
 //TODO: Добавить Enum который будет указывать тип итогового предмета:
 // OK - всё в порядке, информация есть,
 // EMPTY - нет пары или ничего не указано
-public record ScheduleItem(String time, String subjectName, String teacherOrGroupName, String roomNumber, SubGroup subGroup) {
-    public ScheduleItem(String time, String subjectName, String teacherOrGroupName, String roomNumber, SubGroup subGroup) {
+public record ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state) {
+    public ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state) {
         this.subjectName = subjectName;
-        this.teacherOrGroupName = teacherOrGroupName;
+        this.groupName = groupName;
+        this.teacherName = teacherName;
         this.roomNumber = roomNumber;
         this.subGroup = subGroup;
         this.time = setGoodTime(time);
+        this.state = state;
     }
 
     private String setGoodTime(String time) {
@@ -56,8 +58,8 @@ public record ScheduleItem(String time, String subjectName, String teacherOrGrou
      * @return пара строк с фамилией и инициалами преподавателя
      */
     public List<String> teacherNames() {
-        int teacherNamePartsAmount = this.teacherOrGroupName.split(" ").length;
-        String[] teacherNames = this.teacherOrGroupName.split(",");
+        int teacherNamePartsAmount = this.teacherName.split(" ").length;
+        String[] teacherNames = this.teacherName.split(",");
         List<String> finalTeacherNames = new ArrayList<>();
         for (String teacherName : teacherNames) {
             finalTeacherNames.add(teacherName.strip());

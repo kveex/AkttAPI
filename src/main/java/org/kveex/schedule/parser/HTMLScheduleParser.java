@@ -7,6 +7,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.kveex.AkttAPI;
+import org.kveex.schedule.ScheduleItemState;
 import org.kveex.schedule.SubGroup;
 import org.kveex.schedule.ScheduleGroup;
 import org.kveex.schedule.ScheduleItem;
@@ -176,14 +177,14 @@ public class HTMLScheduleParser {
 
     public ScheduleGroup getTeacherScheduleGroup(String teacherName) {
         var schedule = getSchedule();
-        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(getScheduleDate().toString(), teacherName);
+        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(getScheduleDate().toString(), null, teacherName);
 
         if (!isTeacherExists(teacherName)) return teacherScheduleGroup;
 
         for (ScheduleGroup group : schedule) {
             for (ScheduleItem item : group.scheduleItems()) {
-                if (!item.teacherOrGroupName().equals(teacherName)) continue;
-                ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupOrTeacherName(), item.roomNumber(), item.subGroup());
+                if (!item.teacherName().equals(teacherName)) continue;
+                ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupName(), teacherName, item.roomNumber(), item.subGroup(), ScheduleItemState.OK);
                 teacherScheduleGroup.add(newItem);
             }
         }
@@ -240,10 +241,10 @@ public class HTMLScheduleParser {
 
     private ScheduleGroup buildStudentScheduleGroup(String groupName) {
         String scheduleDate = getScheduleDate().toString();
-        ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate, groupName);
+        ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate, groupName, null);
         var infoList = getTimeAndInfoForScheduleGroup(groupName);
         for (Pair<String, String> info : infoList) {
-            List<ScheduleItem> scheduleItems = buildScheduleItem(info.getFirst(), info.getSecond());
+            List<ScheduleItem> scheduleItems = buildScheduleItem(groupName, info.getFirst(), info.getSecond());
             scheduleGroup.addAll(scheduleItems);
         }
         return scheduleGroup;
@@ -309,7 +310,7 @@ public class HTMLScheduleParser {
      * @param info Информация об учебной паре (Название предмета, Преподаватель, кабинет)
      * @return Класс с информацией об учебной паре
      */
-    public static List<ScheduleItem> buildScheduleItem(String time, String info) {
+    public static List<ScheduleItem> buildScheduleItem(String groupName, String time, String info) {
         List<ScheduleItem> result = new ArrayList<>();
         String[] subjects = info.split("\\s*–\\s*");
         String subjectName;
@@ -353,7 +354,7 @@ public class HTMLScheduleParser {
                 roomNumber = "Не указан";
             }
 
-            ScheduleItem staticCaseItem = checkForStaticCases(time, subject, roomNumber, itemSubGroup);
+            ScheduleItem staticCaseItem = checkForStaticCases(time, groupName, subject, roomNumber, itemSubGroup);
             if (staticCaseItem != null) {
                 return Collections.singletonList(staticCaseItem);
             }
@@ -380,7 +381,7 @@ public class HTMLScheduleParser {
 
             if (teacherName.isEmpty()) teacherName = "Не указан";
 
-            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, teacherName.trim(), roomNumber, itemSubGroup);
+            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, groupName, teacherName.trim(), roomNumber, itemSubGroup, ScheduleItemState.OK);
             result.add(scheduleItem);
         }
         return result;
@@ -451,18 +452,18 @@ public class HTMLScheduleParser {
      * @param roomNumber Кабинет проведения учебной пары
      * @return Класс с информацией об особом случае учебной пары
      */
-    private static ScheduleItem checkForStaticCases(String time, String info, String roomNumber, SubGroup subGroup) {
+    private static ScheduleItem checkForStaticCases(String time, String groupName, String info, String roomNumber, SubGroup subGroup) {
         String caseText = info.toLowerCase();
         String caseTime = time.toLowerCase();
         String[] parts = info.split(" ");
         StringBuilder teacherName = new StringBuilder();
 
         if (caseText.contains("нет пары")) {
-            return new ScheduleItem(time, "Нет пары", "Не указан", roomNumber, subGroup);
+            return new ScheduleItem(time, "Нет пары", groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.EMPTY);
         }
 
         if (caseText.contains("о важном")) {
-            return new ScheduleItem(time, "Разговор о важном", "Не указан", roomNumber, subGroup);
+            return new ScheduleItem(time, "Разговор о важном", groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.OK);
         }
 
         if (caseText.contains("лыжи снежинка")) {
@@ -472,14 +473,14 @@ public class HTMLScheduleParser {
                     teacherName.append(parts[i]).append(" ");
                 }
             }
-            return new ScheduleItem(time, subjectName, teacherName.toString(), "Снежинка", subGroup);
+            return new ScheduleItem(time, subjectName, groupName, teacherName.toString(), "Снежинка", subGroup, ScheduleItemState.OK);
         }
 
         if (caseTime.contains("пп") || caseTime.contains("уп")) {
             teacherName = new StringBuilder();
             for (String part : parts) teacherName.append(part).append(" ");
 
-            return new ScheduleItem(time, "Практика", teacherName.toString(), roomNumber, subGroup);
+            return new ScheduleItem(time, "Практика", groupName, teacherName.toString(), roomNumber, subGroup, ScheduleItemState.OK);
         }
         return null;
     }
