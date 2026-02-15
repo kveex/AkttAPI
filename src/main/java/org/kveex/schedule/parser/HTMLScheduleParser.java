@@ -48,20 +48,22 @@ public class HTMLScheduleParser {
 
         if (newEditTime == null) {
             AkttAPI.LOGGER.error("Не удалось получить время изменения документа, но он всё равно обновлён!");
+            this.scheduleDate = collectScheduleDate();
+            this.groupsList = collectAllGroups();
+            this.fullSchedule = makeSchedule();
+            this.teachersList = collectAllTeachers();
             return;
         }
 
         if (editTime == null) {
             editTime = newEditTime;
             AkttAPI.LOGGER.info("Парсер скачал и прочитал HTML документ, момент изменения: {}", editTime);
-            return;
-        }
-
-        if (newEditTime.isAfter(editTime)) {
+        } else if (newEditTime.isAfter(editTime)) {
             AkttAPI.LOGGER.info("Новый HTML документ с моментом изменения: {}", newEditTime);
             editTime = newEditTime;
         } else {
             AkttAPI.LOGGER.info("HTML документ не обновлён, момент изменения: {}", editTime);
+            return;
         }
 
         this.scheduleDate = collectScheduleDate();
@@ -200,7 +202,8 @@ public class HTMLScheduleParser {
 
         for (ScheduleGroup group : fullSchedule) {
             for (ScheduleItem item : group.scheduleItems()) {
-                if (!item.teacherName().equals(teacherName)) continue;
+                List<String> teachers = item.teacherNames();
+                if (teachers == null || !teachers.contains(teacherName)) continue;
                 ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupName(), teacherName, item.roomNumber(), item.subGroup(), ScheduleItemState.OK, scheduleDate);
                 teacherScheduleGroup.add(newItem);
             }
@@ -238,7 +241,10 @@ public class HTMLScheduleParser {
 
     public ScheduleGroup getStudentScheduleGroup(String groupName) {
         if (isGroupExists(groupName.toLowerCase())) {
-            return buildStudentScheduleGroup(groupName.toLowerCase());
+            for (ScheduleGroup group : fullSchedule) {
+                if (!group.groupName().equals(groupName.toLowerCase())) continue;
+                return group;
+            }
         }
         throw new IllegalArgumentException("Группа [%s] не найдена!".formatted(groupName));
     }
@@ -255,7 +261,10 @@ public class HTMLScheduleParser {
 
     private List<Pair<String, String>> getTimeAndInfoForScheduleGroup(String groupName) {
         List<Pair<String, String>> timeAndInfoList = new ArrayList<>();
-        Element table = this.document.select("table").getFirst();
+
+        Elements tables = this.document.select("table");
+        if (tables.isEmpty()) return timeAndInfoList;
+        Element table = tables.getFirst();
 
         // Массив для хранения текущей группы для каждой из трёх колонок
         String[] currentColumns = new String[3];

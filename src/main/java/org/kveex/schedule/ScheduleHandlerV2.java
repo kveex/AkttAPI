@@ -44,11 +44,11 @@ public class ScheduleHandlerV2 {
     }
 
     public List<ScheduleGroup> getSchedule() {
-        return htmlScheduleParser.getFullSchedule();
+        return new ArrayList<>(htmlScheduleParser.getFullSchedule());
     }
 
     public List<String> getGroupsList() {
-        return htmlScheduleParser.getGroupsList();
+        return new ArrayList<>(htmlScheduleParser.getGroupsList());
     }
 
     public ScheduleGroup getTeacherScheduleGroup(String teacherName) {

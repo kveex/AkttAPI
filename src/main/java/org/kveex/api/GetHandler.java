@@ -8,7 +8,6 @@ import org.kveex.schedule.SubGroup;
 import org.kveex.schedule.ScheduleGroup;
 import org.kveex.schedule.ScheduleHandlerV2;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -181,7 +180,7 @@ public class GetHandler {
             responses = {
                     @OpenApiResponse(
                             status = "200",
-                            content = {@OpenApiContent(from = ArrayList.class)}
+                            content = {@OpenApiContent(from = String[].class)}
                     )
             }
     )
@@ -212,14 +211,14 @@ public class GetHandler {
                             content = {@OpenApiContent(from = ScheduleGroup.class)}),
                     @OpenApiResponse(
                             status = "404",
-                            description = "Группа не найдена"
+                            description = "Преподаватель не найден"
                     )
             }
     )
     public static void getTeacherSchedule(ScheduleHandlerV2 scheduleHandler, Context context) {
         String teacherName = context.pathParam("teacher");
         var sch = scheduleHandler.getTeacherScheduleGroup(teacherName);
-        if (sch.scheduleItems().isEmpty() && sch.teacherName() == null) {
+        if (sch.scheduleItems().isEmpty()) {
             context.status(HttpStatus.NOT_FOUND);
             context.json(Map.of("error", "Преподаватель [%s] не найден".formatted(teacherName)));
             AkttAPI.LOGGER.error("Преподаватель [{}] не найден", teacherName);

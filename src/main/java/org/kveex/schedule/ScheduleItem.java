@@ -5,10 +5,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-//TODO: Разделить преподавателя и группу в два разных значения
-//TODO: Добавить Enum который будет указывать тип итогового предмета:
-// OK - всё в порядке, информация есть,
-// EMPTY - нет пары или ничего не указано
 public record ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state, LocalDate scheduleDate) {
     public ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state, LocalDate scheduleDate) {
         this.subjectName = subjectName;
@@ -70,10 +66,12 @@ public record ScheduleItem(String time, String subjectName, String groupName, St
 
     public int timeToInt() {
         return switch (time) {
-            case "10:10 - 11:40", "[10:10 - 10:45 () 11:15 - 12:00]", "9:20 - 10:30" -> 1;
+            case "8:30 - 10:00", "8:00 - 9:10" -> 0;
+            case "10:10 - 11:40", "[10:10 - 10:45 (перерыв) 11:15 - 12:00]", "9:20 - 10:30" -> 1;
             case "12:10 - 13:40", "10:40 - 11:50" -> 2;
             case "13:50 - 15:20", "12:00 - 13:10" -> 3;
-            default -> 0;
+            //Указания другого времени типа "5п" будут ставиться в конец или по очереди добавления
+            default -> 4;
         };
     }
 }
