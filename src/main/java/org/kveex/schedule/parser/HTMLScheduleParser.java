@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -46,7 +47,7 @@ public class HTMLScheduleParser {
         LocalDateTime newEditTime = getScheduleEditDate();
 
         if (newEditTime == null) {
-            AkttAPI.LOGGER.error("Не удалось получить время изменения документа, но он всё равно обновлён!");
+            AkttAPI.LOGGER.warn("Не удалось получить время изменения документа, но он всё равно обновлён!");
             this.scheduleDate = collectScheduleDate();
             this.groupsList = collectAllGroups();
             this.fullSchedule = makeSchedule();
@@ -97,8 +98,13 @@ public class HTMLScheduleParser {
             if ("dateModified".equals(meta.attr("property"))) {
                 String contentValue = meta.attr("content");
                 if (!contentValue.isEmpty()) {
-                    OffsetDateTime offsetDateTime = OffsetDateTime.parse(contentValue);
-                    return offsetDateTime.toLocalDateTime();
+                    try {
+                        OffsetDateTime offsetDateTime = OffsetDateTime.parse(contentValue);
+                        return offsetDateTime.toLocalDateTime();
+                    } catch (DateTimeParseException e) {
+                        AkttAPI.LOGGER.warn("Не удалось распарсить дату изменения: {}", e.toString());
+                        return null;
+                    }
                 }
             }
         }
@@ -371,7 +377,8 @@ public class HTMLScheduleParser {
 
             ScheduleItem staticCaseItem = checkForStaticCases(time, groupName, subject, roomNumber, itemSubGroup);
             if (staticCaseItem != null) {
-                return Collections.singletonList(staticCaseItem);
+                result.add(staticCaseItem);
+                continue;
             }
 
 
