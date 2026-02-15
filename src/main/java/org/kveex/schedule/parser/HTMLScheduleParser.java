@@ -147,7 +147,7 @@ public class HTMLScheduleParser {
             }
         }
 
-        if (day == 1 && month == 1 && year == 1) {
+        if (year < 2000 || month < 1 || day < 1) {
             throw new IllegalStateException("Не удалось получить дату расписания, вероятно указание не было найдено в документе");
         }
 
