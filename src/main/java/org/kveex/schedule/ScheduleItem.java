@@ -9,20 +9,21 @@ import java.util.List;
 //TODO: Добавить Enum который будет указывать тип итогового предмета:
 // OK - всё в порядке, информация есть,
 // EMPTY - нет пары или ничего не указано
-public record ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state) {
-    public ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state) {
+public record ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state, LocalDate scheduleDate) {
+    public ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state, LocalDate scheduleDate) {
         this.subjectName = subjectName;
         this.groupName = groupName;
         this.teacherName = teacherName;
         this.roomNumber = roomNumber;
         this.subGroup = subGroup;
-        this.time = setGoodTime(time);
+        this.time = setGoodTime(time, scheduleDate);
         this.state = state;
+        this.scheduleDate = scheduleDate;
     }
 
-    private String setGoodTime(String time) {
+    private String setGoodTime(String time, LocalDate scheduleDate) {
         String goodTime = time;
-        boolean todayIsSaturday = LocalDate.now().getDayOfWeek() == DayOfWeek.SATURDAY;
+        boolean todayIsSaturday = scheduleDate.getDayOfWeek() == DayOfWeek.SATURDAY;
         switch (time) {
             case "1,2": {
                 goodTime = !todayIsSaturday ? "8:30 - 10:00" : "8:00 - 9:10";
@@ -38,7 +39,7 @@ public record ScheduleItem(String time, String subjectName, String groupName, St
                     goodTime = "9:20 - 10:30";
                     break;
                 }
-                goodTime = isInSecondCampus ? "10:10 - 11:40" : "[10:10 - 10:45 () 11:15 - 12:00]";
+                goodTime = isInSecondCampus ? "10:10 - 11:40" : "[10:10 - 10:45 (перерыв) 11:15 - 12:00]";
                 break;
             }
             case "5,6": {

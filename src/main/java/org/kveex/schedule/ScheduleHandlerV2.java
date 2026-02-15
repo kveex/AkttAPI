@@ -1,5 +1,6 @@
 package org.kveex.schedule;
 
+import org.kveex.AkttAPI;
 import org.kveex.schedule.parser.HTMLScheduleParser;
 
 import java.io.IOException;
@@ -24,7 +25,7 @@ public class ScheduleHandlerV2 {
                 try {
                     htmlScheduleParser.updateDocument();
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    AkttAPI.LOGGER.error("Ошибка при обновлении расписания: {}", e.getMessage());
                 }
             }
         },1000, repeatDelay);
@@ -43,11 +44,11 @@ public class ScheduleHandlerV2 {
     }
 
     public List<ScheduleGroup> getSchedule() {
-        return htmlScheduleParser.getSchedule();
+        return htmlScheduleParser.getFullSchedule();
     }
 
     public List<String> getGroupsList() {
-        return htmlScheduleParser.getAllGroups();
+        return htmlScheduleParser.getGroupsList();
     }
 
     public ScheduleGroup getTeacherScheduleGroup(String teacherName) {
@@ -55,6 +56,6 @@ public class ScheduleHandlerV2 {
     }
 
     public List<String> getTeachersList() {
-        return new ArrayList<>(htmlScheduleParser.getAllTeachers());
+        return new ArrayList<>(htmlScheduleParser.getTeachersList());
     }
 }

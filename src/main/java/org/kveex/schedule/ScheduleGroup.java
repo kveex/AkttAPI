@@ -17,9 +17,10 @@ public record ScheduleGroup(String scheduleDate, String groupName, String teache
     }
 
     public void replaceScheduleItems(List<ScheduleItem> scheduleItems) {
-        for (int i = 0; i < scheduleItems.size(); i++) {
-            this.scheduleItems.set(i, scheduleItems.get(i));
-        }
+        if (this.scheduleItems == scheduleItems) return;
+
+        this.scheduleItems.clear();
+        this.scheduleItems.addAll(scheduleItems);
     }
 
     public ScheduleGroup getSubGroup(SubGroup subGroup) {

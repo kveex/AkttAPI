@@ -16,9 +16,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Pattern;
 
 public class HTMLScheduleParser {
@@ -26,11 +24,16 @@ public class HTMLScheduleParser {
     private static final int GROUP_SUBJECT_COLUMN = 2;
     private static final int GROUP_COLUMN_WIDTH = 3;
 
-    private Document document;
+    private volatile Document document;
     private static final String URL = "https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html";
-    private LocalDateTime editTime;
+    private volatile LocalDateTime editTime;
     private static final List<String> staticRoomNames = List.of("библ.", "маст.", "дист.");
     private static final Pattern usualRoomPattern = Pattern.compile("\\d+[аб]?(?:/\\d+[аб]?)?");
+
+    private LocalDate scheduleDate;
+    private List<ScheduleGroup> fullSchedule;
+    private List<String> groupsList;
+    private Set<String> teachersList;
 
     public HTMLScheduleParser() throws IOException {
         updateDocument();
@@ -49,7 +52,7 @@ public class HTMLScheduleParser {
         }
 
         if (editTime == null) {
-            editTime = getScheduleEditDate();
+            editTime = newEditTime;
             AkttAPI.LOGGER.info("Парсер скачал и прочитал HTML документ, момент изменения: {}", editTime);
             return;
         }
@@ -60,38 +63,52 @@ public class HTMLScheduleParser {
         } else {
             AkttAPI.LOGGER.info("HTML документ не обновлён, момент изменения: {}", editTime);
         }
+
+        this.scheduleDate = collectScheduleDate();
+        this.groupsList = collectAllGroups();
+        this.fullSchedule = makeSchedule();
+        this.teachersList = collectAllTeachers();
+    }
+
+    public LocalDate getScheduleDate() {
+        return scheduleDate;
+    }
+
+    public List<ScheduleGroup> getFullSchedule() {
+        return fullSchedule;
+    }
+
+    public List<String> getGroupsList() {
+        return groupsList;
+    }
+
+    public Set<String> getTeachersList() {
+        return teachersList;
     }
 
     /**
      * Собирает информацию об изменении документа, сохранённые в метадате
      * @return Дату и время обновления
      */
-    public LocalDateTime getScheduleEditDate() {
+    private LocalDateTime getScheduleEditDate() {
         Elements metaData = document.select("meta");
-        String contentValue = null;
-
         for (Element meta : metaData) {
-            String metaString = meta.toString();
-            if (!metaString.contains("property=\"dateModified\"")) continue;
-            String content;
-            content = metaString.split(" ")[2];
-            content = content.split("=")[1];
-            content = content.replace("\"", "");
-            content = content.replace(">", "");
-            contentValue = content;
+            if ("dateModified".equals(meta.attr("property"))) {
+                String contentValue = meta.attr("content");
+                if (!contentValue.isEmpty()) {
+                    OffsetDateTime offsetDateTime = OffsetDateTime.parse(contentValue);
+                    return offsetDateTime.toLocalDateTime();
+                }
+            }
         }
-
-        if (contentValue == null) return null;
-
-        OffsetDateTime offsetDateTime = OffsetDateTime.parse(contentValue);
-        return offsetDateTime.toLocalDateTime();
+        return null;
     }
 
     /**
      * Берёт дату на которое рассчитано расписание
      * @return LocalDate класс с датой месяцом и голом расписания в формате "yyyy-mm-dd"
      */
-    public LocalDate getScheduleDate() {
+    private LocalDate collectScheduleDate() {
         Elements elements = document.select("p");
         String[] dateParts = new String[8];
         List<String> months = List.of(
@@ -109,9 +126,11 @@ public class HTMLScheduleParser {
             if (!elementText.contains("расписание на")) continue;
 
             dateParts = elementText.split(" ");
+            break;
         }
 
         for (String part : dateParts) {
+            if (part == null) continue;
             if (part.matches("\\d{2}")) {
                 day = Integer.parseInt(part);
             } else if (part.matches("\\d{4}г")) {
@@ -129,7 +148,7 @@ public class HTMLScheduleParser {
      * Проходится по документу и собирает все группы
      * @return список со всеми группами
      */
-    public List<String> getAllGroups() {
+    private List<String> collectAllGroups() {
         List<String> groups = new ArrayList<>();
         Elements elements = this.document.select("table");
         Elements rows = elements.select("tr");
@@ -138,6 +157,7 @@ public class HTMLScheduleParser {
             Elements cells = row.select("td");
 
             for (int i = 0; i < 9; i+=3) {
+                if (i >= cells.size()) break;
                 String group = cells.get(i).text().toLowerCase();
                 if (group.isBlank() || group.contains("группа")) continue;
                 if (group.contains("дистант")) group = group.replace("дистант", "").trim();
@@ -152,18 +172,16 @@ public class HTMLScheduleParser {
      * Собирает имена преподавателей из всех групп
      * @return Список
      */
-    public List<String> getAllTeachers() {
-        List<String> teacherNames = new ArrayList<>();
-        List<ScheduleGroup> scheduleGroups = getSchedule();
+    private LinkedHashSet<String> collectAllTeachers() {
+        LinkedHashSet<String> teacherNames = new LinkedHashSet<>();
 
-        for (ScheduleGroup scheduleGroup : scheduleGroups) {
+        for (ScheduleGroup scheduleGroup : fullSchedule) {
             for (ScheduleItem scheduleItem : scheduleGroup.scheduleItems()) {
                 List<String> teacherName = scheduleItem.teacherNames();
                 if (teacherName == null) continue;
                 for (String name : teacherName) {
                     if (name.isBlank()) continue;
                     if (name.contains("указан")) continue;
-                    if (teacherNames.contains(name)) continue;
                     teacherNames.add(name);
                 }
             }
@@ -172,19 +190,18 @@ public class HTMLScheduleParser {
     }
 
     private boolean isTeacherExists(String teacherName) {
-        return getAllTeachers().contains(teacherName);
+        return teachersList.contains(teacherName);
     }
 
     public ScheduleGroup getTeacherScheduleGroup(String teacherName) {
-        var schedule = getSchedule();
-        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(getScheduleDate().toString(), null, teacherName);
+        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(scheduleDate.toString(), null, teacherName);
 
         if (!isTeacherExists(teacherName)) return teacherScheduleGroup;
 
-        for (ScheduleGroup group : schedule) {
+        for (ScheduleGroup group : fullSchedule) {
             for (ScheduleItem item : group.scheduleItems()) {
                 if (!item.teacherName().equals(teacherName)) continue;
-                ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupName(), teacherName, item.roomNumber(), item.subGroup(), ScheduleItemState.OK);
+                ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupName(), teacherName, item.roomNumber(), item.subGroup(), ScheduleItemState.OK, scheduleDate);
                 teacherScheduleGroup.add(newItem);
             }
         }
@@ -198,33 +215,20 @@ public class HTMLScheduleParser {
 
     private static @NotNull List<ScheduleItem> sortScheduleItems(ScheduleGroup teacherScheduleGroup) {
         var teacherScheduleItems = teacherScheduleGroup.scheduleItems();
-
-        for (ScheduleItem item : teacherScheduleItems) {
-            int value = item.timeToInt();
-
-            for (int i = 0; i < teacherScheduleItems.size() - 1; i++) {
-                if (value < teacherScheduleItems.get(i).timeToInt()) {
-                    ScheduleItem tempItem = teacherScheduleItems.get(i);
-                    teacherScheduleItems.set(i, teacherScheduleItems.get(i + 1));
-                    teacherScheduleItems.set(i + 1, tempItem);
-                    break;
-                }
-            }
-        }
+        teacherScheduleItems.sort(Comparator.comparingInt(ScheduleItem::timeToInt));
         return teacherScheduleItems;
     }
 
     private boolean isGroupExists(String groupName) {
-        return getAllGroups().contains(groupName);
+        return groupsList.contains(groupName);
     }
 
     /**
      * Проходится по документу и собирает расписания всех групп в список
      * @return Лист с объектами содержащими расписание для каждой группы
      */
-    public List<ScheduleGroup> getSchedule() {
+    private List<ScheduleGroup> makeSchedule() {
         List<ScheduleGroup> scheduleGroups = new ArrayList<>();
-        List<String> groupsList = getAllGroups();
         for (String group : groupsList) {
             ScheduleGroup scheduleGroup = buildStudentScheduleGroup(group);
             scheduleGroups.add(scheduleGroup);
@@ -240,8 +244,7 @@ public class HTMLScheduleParser {
     }
 
     private ScheduleGroup buildStudentScheduleGroup(String groupName) {
-        String scheduleDate = getScheduleDate().toString();
-        ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate, groupName, null);
+        ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate.toString(), groupName, null);
         var infoList = getTimeAndInfoForScheduleGroup(groupName);
         for (Pair<String, String> info : infoList) {
             List<ScheduleItem> scheduleItems = buildScheduleItem(groupName, info.getFirst(), info.getSecond());
@@ -310,7 +313,7 @@ public class HTMLScheduleParser {
      * @param info Информация об учебной паре (Название предмета, Преподаватель, кабинет)
      * @return Класс с информацией об учебной паре
      */
-    public static List<ScheduleItem> buildScheduleItem(String groupName, String time, String info) {
+    public List<ScheduleItem> buildScheduleItem(String groupName, String time, String info) {
         List<ScheduleItem> result = new ArrayList<>();
         String[] subjects = info.split("\\s*–\\s*");
         String subjectName;
@@ -381,7 +384,7 @@ public class HTMLScheduleParser {
 
             if (teacherName.isEmpty()) teacherName = "Не указан";
 
-            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, groupName, teacherName.trim(), roomNumber, itemSubGroup, ScheduleItemState.OK);
+            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, groupName, teacherName.trim(), roomNumber, itemSubGroup, ScheduleItemState.OK, scheduleDate);
             result.add(scheduleItem);
         }
         return result;
@@ -401,45 +404,58 @@ public class HTMLScheduleParser {
         StringBuilder teacherName = new StringBuilder();
         int subjectNameEndIndex;
 
-        //Имя преподавателя формируется до индекса с указанием подгруппы
+        // Имя преподавателя формируется до индекса с указанием подгруппы
         if (subGroupIndex != -1) {
+            // добавляем только те части, которые существуют: проверяем границы
             for (int i = 1; i <= 2; i++) {
-                String part = parts[subGroupIndex + i];
-                tempTeacherName.append(part).append(" ");
+                int idx = subGroupIndex + i;
+                if (idx < parts.length) {
+                    tempTeacherName.append(parts[idx]).append(" ");
+                }
             }
             subjectNameEndIndex = subGroupIndex;
-        //Сдвигает формирование имени преподавателя, если номера комнаты нет, чтобы ничего не сломалось
-        } else if (roomNumber.equals("Не указан")) {
+
+            // Сдвигает формирование имени преподавателя, если номера комнаты нет
+        } else if ("Не указан".equals(roomNumber)) {
             int startIndex = lastPartIndex > 3 ? 3 : 1;
-            for (int i = startIndex; i >= 0; i--) {
-                String part = parts[lastPartIndex - i];
-                tempTeacherName.append(part).append(" ");
+            int from = Math.max(0, lastPartIndex - startIndex);
+            for (int j = from; j <= lastPartIndex; j++) {
+                tempTeacherName.append(parts[j]).append(" ");
             }
-            subjectNameEndIndex = lastPartIndex - startIndex;
-        //Этот вариант предназначен для случая, когда указан только предмет, в большинстве случаев
+            subjectNameEndIndex = from;
+
+            // Когда указан только предмет (маленький массив)
         } else if (parts.length <= 2) {
             subjectNameEndIndex = lastPartIndex;
-        //Этот вариант предназначен для случая, когда указаны предмет и преподаватель, но номер слился с инициалами
-        } else if (parts.length == 3 && roomNumber.matches(usualRoomPattern.pattern())) {
+
+            // Когда указаны предмет и преподаватель, но номер слился с инициалами
+        } else if (parts.length == 3 && roomNumber != null && roomNumber.matches(usualRoomPattern.pattern())) {
             int startIndex = 1;
-            for (int i = startIndex; i >= 0; i--) {
-                String part = parts[lastPartIndex - i];
-                tempTeacherName.append(part).append(" ");
+            int from = Math.max(0, lastPartIndex - startIndex);
+            for (int j = from; j <= lastPartIndex; j++) {
+                tempTeacherName.append(parts[j]).append(" ");
             }
-            subjectNameEndIndex = lastPartIndex - startIndex;
+            subjectNameEndIndex = from;
+
         } else {
             int startIndex = doubleRoomNumber ? 4 : 2;
-            for (int i = startIndex; i > 0; i--) {
-                String part = parts[lastPartIndex - i];
-                tempTeacherName.append(part).append(" ");
+            int from = Math.max(0, lastPartIndex - startIndex);
+            int to = Math.max(from, lastPartIndex - 1);
+            for (int j = from; j <= to; j++) {
+                tempTeacherName.append(parts[j]).append(" ");
             }
-            subjectNameEndIndex = lastPartIndex - startIndex;
+            subjectNameEndIndex = from;
         }
 
-        //Цикл вычищает номер кабинета из инициалов преподавателя
-        for (String teacherPart : tempTeacherName.toString().trim().split("\\.")) {
-            if (teacherPart.matches(usualRoomPattern.pattern())) break;
-            teacherName.append(teacherPart).append(".");
+        // Цикл вычищает номер кабинета из инициалов преподавателя
+        String tmp = tempTeacherName.toString().trim();
+        if (!tmp.isEmpty()) {
+            for (String teacherPart : tmp.split("\\.")) {
+                if (teacherPart.matches(usualRoomPattern.pattern())) break;
+                if (!teacherPart.isBlank()) {
+                    teacherName.append(teacherPart).append(".");
+                }
+            }
         }
 
         return new Pair<>(teacherName.toString(), subjectNameEndIndex);
@@ -452,18 +468,18 @@ public class HTMLScheduleParser {
      * @param roomNumber Кабинет проведения учебной пары
      * @return Класс с информацией об особом случае учебной пары
      */
-    private static ScheduleItem checkForStaticCases(String time, String groupName, String info, String roomNumber, SubGroup subGroup) {
+    private ScheduleItem checkForStaticCases(String time, String groupName, String info, String roomNumber, SubGroup subGroup) {
         String caseText = info.toLowerCase();
         String caseTime = time.toLowerCase();
         String[] parts = info.split(" ");
         StringBuilder teacherName = new StringBuilder();
 
         if (caseText.contains("нет пары")) {
-            return new ScheduleItem(time, "Нет пары", groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.EMPTY);
+            return new ScheduleItem(time, "Нет пары", groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.EMPTY, scheduleDate);
         }
 
         if (caseText.contains("о важном")) {
-            return new ScheduleItem(time, "Разговор о важном", groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.OK);
+            return new ScheduleItem(time, "Разговор о важном", groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.OK, scheduleDate);
         }
 
         if (caseText.contains("лыжи снежинка")) {
@@ -473,14 +489,14 @@ public class HTMLScheduleParser {
                     teacherName.append(parts[i]).append(" ");
                 }
             }
-            return new ScheduleItem(time, subjectName, groupName, teacherName.toString(), "Снежинка", subGroup, ScheduleItemState.OK);
+            return new ScheduleItem(time, subjectName, groupName, teacherName.toString(), "Снежинка", subGroup, ScheduleItemState.OK, scheduleDate);
         }
 
         if (caseTime.contains("пп") || caseTime.contains("уп")) {
             teacherName = new StringBuilder();
             for (String part : parts) teacherName.append(part).append(" ");
 
-            return new ScheduleItem(time, "Практика", groupName, teacherName.toString(), roomNumber, subGroup, ScheduleItemState.OK);
+            return new ScheduleItem(time, "Практика", groupName, teacherName.toString(), roomNumber, subGroup, ScheduleItemState.OK, scheduleDate);
         }
         return null;
     }

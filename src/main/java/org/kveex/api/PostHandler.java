@@ -43,7 +43,7 @@ public class PostHandler {
         CertificateItem certificateItem = context.bodyAsClass(CertificateItem.class);
         CertificateHandler.sendCertificate(certificateItem);
         context.status(HttpStatus.OK);
-        AkttAPI.LOGGER.info(
+        AkttAPI.LOGGER.debug(
                 "Заявление на справку отправлено от ({}, {}, {}) {} {} курс",
                 certificateItem.lastName(),
                 certificateItem.firstName(),

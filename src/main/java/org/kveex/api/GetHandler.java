@@ -25,7 +25,7 @@ public class GetHandler {
             pathParams = {
                     @OpenApiParam(
                             name = "group",
-                            description = "Название учебной группы, обязательно не заглавными буквами",
+                            description = "Название учебной группы, обязательно со строчными буквами",
                             example = "23-14ис",
                             required = true
                     ),
@@ -43,6 +43,10 @@ public class GetHandler {
                             status = "200",
                             content = {@OpenApiContent(from = ScheduleGroup.class)}),
                     @OpenApiResponse(
+                            status = "400",
+                            description = "Подгруппа указана неверно"
+                    ),
+                    @OpenApiResponse(
                             status = "404",
                             description = "Группа не найдена"
                     )
@@ -50,7 +54,15 @@ public class GetHandler {
     )
     public static void getScheduleGroupDefinedSubGroup(ScheduleHandlerV2 scheduleHandler, Context context) {
         String groupName = context.pathParam("group");
-        int subGroup = Integer.parseInt(context.pathParam("subGroup"));
+        int subGroup;
+
+        try {
+            subGroup = Integer.parseInt(context.pathParam("subGroup"));
+        } catch (NumberFormatException e) {
+            context.status(HttpStatus.BAD_REQUEST);
+            context.json(Map.of("error", "подгруппа должна быть числом!"));
+            return;
+        }
 
         try {
             var sch = scheduleHandler.getStudentScheduleGroup(groupName, SubGroup.toSubGroup(subGroup));
@@ -150,7 +162,7 @@ public class GetHandler {
             responses = {
                     @OpenApiResponse(
                             status = "200",
-                            content = {@OpenApiContent(from = ScheduleGroup.class)})
+                            content = {@OpenApiContent(from = String[].class)})
             }
     )
     public static void getGroupsList(ScheduleHandlerV2 scheduleHandler, Context context) {
@@ -206,15 +218,15 @@ public class GetHandler {
     )
     public static void getTeacherSchedule(ScheduleHandlerV2 scheduleHandler, Context context) {
         String teacherName = context.pathParam("teacher");
-        try {
-            var sch = scheduleHandler.getTeacherScheduleGroup(teacherName);
+        var sch = scheduleHandler.getTeacherScheduleGroup(teacherName);
+        if (sch.scheduleItems().isEmpty() && sch.teacherName() == null) {
+            context.status(HttpStatus.NOT_FOUND);
+            context.json(Map.of("error", "Преподаватель [%s] не найден".formatted(teacherName)));
+            AkttAPI.LOGGER.error("Преподаватель [{}] не найден", teacherName);
+        } else {
             context.status(HttpStatus.OK);
             context.json(sch);
             AkttAPI.LOGGER.info("Запрос на расписание для преподавателя {}", teacherName);
-        } catch (IllegalArgumentException e) {
-            context.status(HttpStatus.NOT_FOUND);
-            context.json(Map.of("error", e.toString()));
-            AkttAPI.LOGGER.error(e.toString());
         }
     }
 }
