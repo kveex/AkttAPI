@@ -1,57 +1,77 @@
 package org.kveex.schedule;
 
-import org.jetbrains.annotations.NotNull;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
-public record ScheduleItem(String time, String subject, String teacherName, String roomNumber, SubGroup subGroup) {
-    public enum SubGroup {
-        FIRST,
-        SECOND,
-        BOTH
-    }
-
-    public ScheduleItem(String time, String subject, String teacherName, String roomNumber, SubGroup subGroup) {
-        this.subject = subject;
+public record ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state, LocalDate scheduleDate) {
+    public ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state, LocalDate scheduleDate) {
+        this.subjectName = subjectName;
+        this.groupName = groupName;
         this.teacherName = teacherName;
         this.roomNumber = roomNumber;
         this.subGroup = subGroup;
-        this.time = setGoodTime(time);
+        this.time = setGoodTime(time, scheduleDate);
+        this.state = state;
+        this.scheduleDate = scheduleDate;
     }
 
-    public String setGoodTime(String time) {
+    private String setGoodTime(String time, LocalDate scheduleDate) {
         String goodTime = time;
+        boolean todayIsSaturday = scheduleDate.getDayOfWeek() == DayOfWeek.SATURDAY;
         switch (time) {
             case "1,2": {
-                goodTime = "8:30 - 10:00";
+                goodTime = !todayIsSaturday ? "8:30 - 10:00" : "8:00 - 9:10";
                 break;
             }
             case "3,4": {
                 boolean isInSecondCampus = true;
                 try {
                     int roomNum = Integer.parseInt(roomNumber.replace("а", "").replace("б", ""));
-                    isInSecondCampus = roomNum > 40 && roomNum < 100;
+                    isInSecondCampus = roomNum > 35 && roomNum < 85;
                 } catch (NumberFormatException ignored) {}
-                goodTime = isInSecondCampus ? "10:10 - 11:40" : "[10:10 - 10:45 () 11:15 - 12:00]";
+                if (todayIsSaturday) {
+                    goodTime = "9:20 - 10:30";
+                    break;
+                }
+                goodTime = isInSecondCampus ? "10:10 - 11:40" : "[10:10 - 10:45 (перерыв) 11:15 - 12:00]";
                 break;
             }
             case "5,6": {
-                goodTime = "12:10 - 13:40";
+                goodTime = !todayIsSaturday ? "12:10 - 13:40" : "10:40 - 11:50";
                 break;
             }
             case "7,8": {
-                goodTime = "13:50 - 15:20";
+                goodTime = !todayIsSaturday ? "13:50 - 15:20" : "12:00 - 13:10";
                 break;
             }
         }
         return goodTime;
     }
 
-    public static int toInt(@NotNull SubGroup subGroup) {
-        int result;
-        switch (subGroup) {
-            case FIRST -> result = 1;
-            case SECOND -> result = 2;
-            default -> result = 0;
+    /**
+     * Метод для возвращения имени и инициалов преподавателя
+     * @return пара строк с фамилией и инициалами преподавателя
+     */
+    public List<String> teacherNames() {
+        int teacherNamePartsAmount = this.teacherName.split(" ").length;
+        String[] teacherNames = this.teacherName.split(",");
+        List<String> finalTeacherNames = new ArrayList<>();
+        for (String teacherName : teacherNames) {
+            finalTeacherNames.add(teacherName.strip());
         }
-        return result;
+        return teacherNamePartsAmount >= 2 ? finalTeacherNames : null;
+    }
+
+    public int timeToInt() {
+        return switch (time) {
+            case "8:30 - 10:00", "8:00 - 9:10" -> 0;
+            case "10:10 - 11:40", "[10:10 - 10:45 (перерыв) 11:15 - 12:00]", "9:20 - 10:30" -> 1;
+            case "12:10 - 13:40", "10:40 - 11:50" -> 2;
+            case "13:50 - 15:20", "12:00 - 13:10" -> 3;
+            //Указания другого времени типа "5п" будут ставиться в конец или по очереди добавления
+            default -> 4;
+        };
     }
 }
