@@ -1,6 +1,5 @@
 package org.kveex.schedule.parser;
 
-import kotlin.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -30,10 +29,10 @@ public class HTMLScheduleParser {
     private static final List<String> staticRoomNames = List.of("библ.", "маст.", "дист.");
     private static final Pattern usualRoomPattern = Pattern.compile("\\d+[аб]?(?:/\\d+[аб]?)?");
 
-    private LocalDate scheduleDate;
-    private List<ScheduleGroup> fullSchedule;
-    private List<String> groupsList;
-    private Set<String> teachersList;
+    private volatile LocalDate scheduleDate;
+    private volatile List<ScheduleGroup> fullSchedule;
+    private volatile List<String> groupsList;
+    private volatile Set<String> teachersList;
 
     public HTMLScheduleParser() throws IOException {
         updateDocument();
@@ -140,6 +139,10 @@ public class HTMLScheduleParser {
             } else if (months.contains(part)) {
                 month = months.indexOf(part) + 1;
             }
+        }
+
+        if (day == 1 && month == 1 && year == 1) {
+            throw new IllegalStateException("Не удалось получить дату расписания, вероятно указание не было найдено в документе");
         }
 
         return LocalDate.of(year, month, day);
@@ -498,14 +501,14 @@ public class HTMLScheduleParser {
                     teacherName.append(parts[i]).append(" ");
                 }
             }
-            return new ScheduleItem(time, subjectName, groupName, teacherName.toString(), "Снежинка", subGroup, ScheduleItemState.OK, scheduleDate);
+            return new ScheduleItem(time, subjectName, groupName, teacherName.toString().trim(), "Снежинка", subGroup, ScheduleItemState.OK, scheduleDate);
         }
 
         if (caseTime.contains("пп") || caseTime.contains("уп")) {
             teacherName = new StringBuilder();
             for (String part : parts) teacherName.append(part).append(" ");
 
-            return new ScheduleItem(time, "Практика", groupName, teacherName.toString(), roomNumber, subGroup, ScheduleItemState.OK, scheduleDate);
+            return new ScheduleItem(time, "Практика", groupName, teacherName.toString().trim(), roomNumber, subGroup, ScheduleItemState.OK, scheduleDate);
         }
         return null;
     }
