@@ -119,14 +119,14 @@ public class HTMLScheduleParser {
         Elements elements = document.select("p");
         String[] dateParts = new String[8];
         List<String> months = List.of(
-                "января", "февраля",
-                "марта", "апреля", "мая",
-                "июня", "июля", "августа",
-                "сентября", "октября","ноября",
-                "декабря");
-        int year = 1;
-        int month = 1;
-        int day = 1;
+                "янв", "фев",
+                "мар", "апр", "мая",
+                "июн", "июл", "авг",
+                "сен", "окт", "ноя",
+                "дек");
+        int year = 0;
+        int month = 0;
+        int day = 0;
 
         for (Element element : elements) {
             String elementText = element.text().toLowerCase();
@@ -138,12 +138,19 @@ public class HTMLScheduleParser {
 
         for (String part : dateParts) {
             if (part == null) continue;
-            if (part.matches("\\d{2}")) {
-                day = Integer.parseInt(part);
-            } else if (part.matches("\\d{4}г")) {
-                year = Integer.parseInt(part.replace("г", ""));
-            } else if (months.contains(part)) {
-                month = months.indexOf(part) + 1;
+            String text = part.toLowerCase();
+            String monthText = text;
+
+            try {
+                monthText = text.substring(0, 3);
+            } catch (StringIndexOutOfBoundsException _) {}
+
+            if (text.matches("\\d{2}")) {
+                day = Integer.parseInt(text);
+            } else if (text.matches("\\d{4}г?")) {
+                year = Integer.parseInt(text.replace("г", ""));
+            } else if (months.contains(monthText)) {
+                month = months.indexOf(monthText) + 1;
             }
         }
 
@@ -233,6 +240,27 @@ public class HTMLScheduleParser {
 
     private boolean isGroupExists(String groupName) {
         return groupsList.contains(groupName);
+    }
+
+    private boolean isWholeScheduleDistant() {
+        Elements elements = document.select("p");
+        String[] dateParts = new String[10];
+
+        for (Element element : elements) {
+            String elementText = element.text().toLowerCase();
+            if (!elementText.contains("расписание на")) continue;
+
+            dateParts = elementText.split(" ");
+            break;
+        }
+
+        for (String part : dateParts) {
+            if (part.contains("дист")) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -338,6 +366,7 @@ public class HTMLScheduleParser {
         String teacherName;
         String roomNumber;
         SubGroup itemSubGroup = subjects.length > 1 ? SubGroup.FIRST : SubGroup.BOTH;
+        ScheduleItemState state = ScheduleItemState.OK;
 
         for (String subject : subjects) {
             String[] parts = subject.split(" ");
@@ -358,6 +387,8 @@ public class HTMLScheduleParser {
 
             boolean haveStaticName = staticRoomNames.contains(parts[lastPartIndex]);
             boolean matchesUsualPattern = parts[lastPartIndex].matches(usualRoomPattern.pattern());
+            boolean fullDistant = isWholeScheduleDistant();
+
             String roomNumberCombinedWithTeacher = "";
 
             for (String teacherPart : parts[lastPartIndex].split("\\.")) {
@@ -396,6 +427,7 @@ public class HTMLScheduleParser {
             int subjectNameEndIndex = teacherNameInfo.getSecond();
             for (int i = 0; i < subjectNameEndIndex; i++) {
                 String part = parts[i];
+                if (part.trim().contains("1п") || part.trim().contains("2п")) continue;
                 subjectNameBuilder.append(part).append(" ");
             }
 
@@ -403,7 +435,12 @@ public class HTMLScheduleParser {
 
             if (teacherName.isEmpty()) teacherName = "Не указан";
 
-            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, groupName, teacherName.trim(), roomNumber, itemSubGroup, ScheduleItemState.OK, scheduleDate);
+            if (fullDistant) {
+                roomNumber = "дист.";
+                state = ScheduleItemState.DISTANT;
+            }
+
+            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, groupName, teacherName.trim(), roomNumber, itemSubGroup, state, scheduleDate);
             result.add(scheduleItem);
         }
         return result;
@@ -436,7 +473,7 @@ public class HTMLScheduleParser {
 
             // Сдвигает формирование имени преподавателя, если номера комнаты нет
         } else if ("Не указан".equals(roomNumber)) {
-            int startIndex = lastPartIndex > 3 ? 3 : 1;
+            int startIndex = lastPartIndex >= 4 ? 3 : 1;
             int from = Math.max(0, lastPartIndex - startIndex);
             for (int j = from; j <= lastPartIndex; j++) {
                 tempTeacherName.append(parts[j]).append(" ");
@@ -512,11 +549,18 @@ public class HTMLScheduleParser {
         }
 
         if (caseTime.contains("пп") || caseTime.contains("уп")) {
-            teacherName = new StringBuilder();
-            for (String part : parts) teacherName.append(part).append(" ");
+            for (String part : parts) {
+                if (part.equals(roomNumber)) continue;
+                teacherName.append(part).append(" ");
+            }
 
             return new ScheduleItem(time, "Практика", groupName, teacherName.toString().trim(), roomNumber, subGroup, ScheduleItemState.OK, scheduleDate);
         }
+
+        if (caseText.contains("(сам.раб.)")) {
+            return new ScheduleItem(time, info, groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.OK, scheduleDate);
+        }
+
         return null;
     }
 }
