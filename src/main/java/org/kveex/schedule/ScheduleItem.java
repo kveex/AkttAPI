@@ -29,7 +29,7 @@ public record ScheduleItem(String time, String subjectName, String groupName, St
                 boolean isInSecondCampus = true;
                 try {
                     int roomNum = Integer.parseInt(roomNumber.replace("а", "").replace("б", ""));
-                    isInSecondCampus = roomNum > 35 && roomNum < 85;
+                    isInSecondCampus = roomNum > 35 && roomNum <= 85;
                 } catch (NumberFormatException ignored) {}
                 if (todayIsSaturday) {
                     goodTime = "9:20 - 10:30";

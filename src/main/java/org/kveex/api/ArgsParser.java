@@ -4,7 +4,7 @@ import org.apache.commons.cli.*;
 import org.kveex.AkttAPI;
 
 public class ArgsParser {
-    private int port = 8080;
+    private int port = 16311;
     private static final int minimumRepeatDelayMs = 30 * 60 * 1000;
     private int repeatDelayMs = minimumRepeatDelayMs;
 
