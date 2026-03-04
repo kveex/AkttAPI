@@ -20,7 +20,7 @@ public class AkttAPI {
     private static int repeatDelay;
     private static ScheduleHandlerV2 scheduleHandler;
 
-    static void main(String[] args) {
+    public static void main(String[] args) {
         setArgs(args);
         makeScheduleHandler();
         startApp();
@@ -48,7 +48,7 @@ public class AkttAPI {
                 config.registerPlugin(new OpenApiPlugin(pluginConfig ->
                         pluginConfig.withDocumentationPath("/openapi")
                                 .withDefinitionConfiguration(
-                                        (_, definition) -> definition.withInfo(
+                                        (ignored, definition) -> definition.withInfo(
                                                 info -> {
                                     info.setTitle("AKTT Schedule API");
                                     info.setVersion("1.1.2");

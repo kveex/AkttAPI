@@ -143,7 +143,7 @@ public class HTMLScheduleParser {
 
             try {
                 monthText = text.substring(0, 3);
-            } catch (StringIndexOutOfBoundsException _) {}
+            } catch (StringIndexOutOfBoundsException ignored) {}
 
             if (text.matches("\\d{2}")) {
                 day = Integer.parseInt(text);
