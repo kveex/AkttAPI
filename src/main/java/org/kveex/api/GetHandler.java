@@ -6,7 +6,7 @@ import io.javalin.openapi.*;
 import org.kveex.AkttAPI;
 import org.kveex.schedule.SubGroup;
 import org.kveex.schedule.ScheduleGroup;
-import org.kveex.schedule.ScheduleHandlerV2;
+import org.kveex.schedule.ScheduleHandler;
 
 import java.util.List;
 import java.util.Map;
@@ -30,13 +30,12 @@ public class GetHandler {
                     ),
                     @OpenApiParam(
                             name = "subGroup",
+                            type = int.class,
                             description = "Номер подгруппы: 1 - первая, 2 - вторая, 0 - обе",
                             example = "1",
                             required = true
                     )
             },
-            methods = HttpMethod.GET,
-            tags = {"Schedule"},
             responses = {
                     @OpenApiResponse(
                             status = "200",
@@ -51,7 +50,8 @@ public class GetHandler {
                     )
             }
     )
-    public static void getScheduleGroupDefinedSubGroup(ScheduleHandlerV2 scheduleHandler, Context context) {
+    public static void getScheduleGroupDefinedSubGroup(Context context) {
+        var scheduleHandler = ScheduleHandler.getInstance();
         String groupName = context.pathParam("group");
         int subGroup;
 
@@ -64,9 +64,9 @@ public class GetHandler {
         }
 
         try {
-            var sch = scheduleHandler.getStudentScheduleGroup(groupName, SubGroup.toSubGroup(subGroup));
+            var scheduleGroup = scheduleHandler.getStudentScheduleGroup(groupName, SubGroup.toSubGroup(subGroup));
             context.status(HttpStatus.OK);
-            context.json(sch);
+            context.json(scheduleGroup);
             AkttAPI.LOGGER.info("Запрос на расписание группы {} для {} подгруппы", groupName, subGroup);
         } catch (IllegalArgumentException e) {
             context.status(HttpStatus.NOT_FOUND);
@@ -99,10 +99,10 @@ public class GetHandler {
                     )
             }
     )
-    public static void getScheduleGroupBothSubGroups(ScheduleHandlerV2 scheduleHandler, Context context) {
+    public static void getScheduleGroupBothSubGroups(Context context) {
         String groupName = context.pathParam("group");
         try {
-            var sch = scheduleHandler.getStudentScheduleGroup(groupName);
+            var sch = ScheduleHandler.getInstance().getStudentScheduleGroup(groupName);
             context.status(HttpStatus.OK);
             context.json(sch);
             AkttAPI.LOGGER.info("Запрос на расписание для группы {} для обеих подгрупп", groupName);
@@ -125,7 +125,8 @@ public class GetHandler {
                     )
             }
     )
-    public static void getScheduleDate(ScheduleHandlerV2 scheduleHandler, Context context) {
+    public static void getScheduleDate(Context context) {
+        var scheduleHandler = ScheduleHandler.getInstance();
         String scheduleDate = scheduleHandler.getScheduleDate().toString();
         context.status(HttpStatus.OK);
         context.json(Map.of("scheduleDate", scheduleDate));
@@ -144,7 +145,8 @@ public class GetHandler {
                             content = {@OpenApiContent(from = ScheduleGroup.class)})
             }
     )
-    public static void getSchedule(ScheduleHandlerV2 scheduleHandler, Context context) {
+    public static void getSchedule(Context context) {
+        var scheduleHandler = ScheduleHandler.getInstance();
         var schedule = scheduleHandler.getSchedule();
         String scheduleDate = scheduleHandler.getScheduleDate().toString();
         context.status(HttpStatus.OK);
@@ -164,7 +166,8 @@ public class GetHandler {
                             content = {@OpenApiContent(from = String[].class)})
             }
     )
-    public static void getGroupsList(ScheduleHandlerV2 scheduleHandler, Context context) {
+    public static void getGroupsList(Context context) {
+        var scheduleHandler = ScheduleHandler.getInstance();
         List<String> groups = scheduleHandler.getGroupsList();
         context.status(HttpStatus.OK);
         context.json(Map.of("groupsList", groups));
@@ -184,7 +187,8 @@ public class GetHandler {
                     )
             }
     )
-    public static void getTeachersList(ScheduleHandlerV2 scheduleHandler, Context context) {
+    public static void getTeachersList(Context context) {
+        var scheduleHandler = ScheduleHandler.getInstance();
         List<String> teachers = scheduleHandler.getTeachersList();
         context.status(HttpStatus.OK);
         context.json(Map.of("teachersList", teachers));
@@ -215,16 +219,17 @@ public class GetHandler {
                     )
             }
     )
-    public static void getTeacherSchedule(ScheduleHandlerV2 scheduleHandler, Context context) {
+    public static void getTeacherSchedule(Context context) {
+        var scheduleHandler = ScheduleHandler.getInstance();
         String teacherName = context.pathParam("teacher");
-        var sch = scheduleHandler.getTeacherScheduleGroup(teacherName);
-        if (sch.scheduleItems().isEmpty()) {
+        var scheduleGroup = scheduleHandler.getTeacherScheduleGroup(teacherName);
+        if (scheduleGroup.scheduleItems().isEmpty()) {
             context.status(HttpStatus.NOT_FOUND);
             context.json(Map.of("error", "Преподаватель [%s] не найден".formatted(teacherName)));
             AkttAPI.LOGGER.error("Преподаватель [{}] не найден", teacherName);
         } else {
             context.status(HttpStatus.OK);
-            context.json(sch);
+            context.json(scheduleGroup);
             AkttAPI.LOGGER.info("Запрос на расписание для преподавателя {}", teacherName);
         }
     }

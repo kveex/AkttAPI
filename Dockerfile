@@ -1,4 +1,4 @@
-ARG JDK_VERSION=21
+ARG JDK_VERSION=25
 
 FROM maven:3.9.6-eclipse-temurin-${JDK_VERSION} AS builder
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN mvn -B -DskipTests clean package
 FROM eclipse-temurin:${JDK_VERSION}-jdk AS runtime
 WORKDIR /app
 
-COPY --from=builder /app/target/akttApi-1.1.2.jar /app/app.jar
+COPY --from=builder /app/target/akttApi-1.2.1.jar /app/app.jar
 
 ENV JAVA_OPTS="-XX:+UseContainerSupport -Dfile.encoding=UTF-8"
 EXPOSE 16311
