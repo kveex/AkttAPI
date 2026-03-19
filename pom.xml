@@ -35,16 +35,19 @@
             <version>2.21.1</version>
         </dependency>
         <dependency>
+            <!--Библиотека для создания REST API-->
             <groupId>io.javalin</groupId>
             <artifactId>javalin</artifactId>
             <version>7.0.1</version>
         </dependency>
         <dependency>
+            <!--Плагин для javalin добавляющий openapi описание-->
             <groupId>io.javalin.community.openapi</groupId>
             <artifactId>javalin-openapi-plugin</artifactId>
             <version>7.0.1</version>
         </dependency>
         <dependency>
+            <!--Плагин для javalin добавляющий swagger-->
             <groupId>io.javalin.community.openapi</groupId>
             <artifactId>javalin-swagger-plugin</artifactId>
             <version>7.0.1</version>

@@ -31,6 +31,11 @@ public class ScheduleHandler {
         return INSTANCE;
     }
 
+    public synchronized void setInfo(ScheduleInfo info) {
+        INSTANCE.info = info;
+        AkttAPI.LOGGER.info("info changed!");
+    }
+
     private void startUpdateCycle(int repeatDelay) {
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {

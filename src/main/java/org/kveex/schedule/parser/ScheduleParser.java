@@ -25,8 +25,6 @@ public abstract class ScheduleParser {
 
     public abstract ScheduleInfo parse();
 
-    public abstract LocalDate collectScheduleDate();
-
     /**
      * Узнаёт всё ли расписание рассчитано на дистант, если это указано в заголовке расписания
      * @return True если дистант, иначе False
@@ -37,6 +35,7 @@ public abstract class ScheduleParser {
 
     public abstract LocalDateTime collectScheduleEditDate();
 
+    public abstract List<String> provideScheduleDateLines();
     public abstract List<Pair<String, String>> provideTimeAndInfoForScheduleGroup(String groupName);
 
     /**
@@ -63,6 +62,53 @@ public abstract class ScheduleParser {
         }
 
         return groups;
+    }
+
+    public LocalDate collectScheduleDate() {
+        String[] dateParts = new String[8];
+        List<String> months = List.of(
+                "янв", "фев",
+                "мар", "апр", "мая",
+                "июн", "июл", "авг",
+                "сен", "окт", "ноя",
+                "дек");
+        int year = 0;
+        int month = 0;
+        int day = 0;
+
+        List<String> lines = provideScheduleDateLines();
+        for (String line : lines) {
+            if (line == null) continue;
+            String lineText = line.toLowerCase();
+            if (!lineText.contains("расписание на")) continue;
+
+            dateParts = lineText.split(" ");
+            break;
+        }
+
+        for (String part : dateParts) {
+            if (part == null) continue;
+            String text = part.toLowerCase();
+            String monthText = text;
+
+            try {
+                monthText = text.substring(0, 3);
+            } catch (StringIndexOutOfBoundsException ignored) {}
+
+            if (text.matches("\\d{2}")) {
+                day = Integer.parseInt(text);
+            } else if (text.matches("\\d{4}г?")) {
+                year = Integer.parseInt(text.replace("г", ""));
+            } else if (months.contains(monthText)) {
+                month = months.indexOf(monthText) + 1;
+            }
+        }
+
+        if (year < 2000 || month < 1 || day < 1) {
+            throw new IllegalStateException("Не удалось получить дату расписания, вероятно указание не было найдено в документе");
+        }
+
+        return LocalDate.of(year, month, day);
     }
 
     /**
