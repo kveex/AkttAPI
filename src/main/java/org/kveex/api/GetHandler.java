@@ -147,7 +147,7 @@ public class GetHandler {
     )
     public static void getSchedule(Context context) {
         var scheduleHandler = ScheduleHandler.getInstance();
-        var schedule = scheduleHandler.getSchedule();
+        var schedule = scheduleHandler.getStudentsSchedule();
         String scheduleDate = scheduleHandler.getScheduleDate().toString();
         context.status(HttpStatus.OK);
         context.json(Map.of("scheduleDate", scheduleDate, "schedule", schedule));

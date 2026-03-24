@@ -36,8 +36,10 @@ public class HTMLScheduleParser extends ScheduleParser {
         return new ScheduleInfo(
                 collectScheduleEditDate(),
                 collectScheduleDate(),
-                makeSchedule(),
-                provideGroupsList()
+                makeGroupsSchedule(),
+                makeTeachersSchedule(),
+                provideGroupsList(),
+                collectAllTeachers()
         );
     }
 

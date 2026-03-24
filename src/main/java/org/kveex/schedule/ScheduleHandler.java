@@ -3,7 +3,6 @@ package org.kveex.schedule;
 import org.kveex.AkttAPI;
 import org.kveex.schedule.parser.HTMLScheduleParser;
 import org.kveex.schedule.parser.ScheduleInfo;
-import org.kveex.schedule.parser.ScheduleParser;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -31,9 +30,27 @@ public class ScheduleHandler {
         return INSTANCE;
     }
 
-    public synchronized void setInfo(ScheduleInfo info) {
-        INSTANCE.info = info;
-        AkttAPI.LOGGER.info("info changed!");
+    public synchronized void setInfo(ScheduleInfo newInfo) {
+        boolean isTomorrow = newInfo.scheduleDate().isAfter(info.scheduleDate());
+        boolean isYesterday = newInfo.scheduleDate().isBefore(info.scheduleDate());
+
+        if (isYesterday) {
+            AkttAPI.LOGGER.error("Расписание не было загружено, так как оно предназначено для дня, что уже прошёл");
+            return;
+        }
+        if (!isTomorrow) {
+            if (info.equals(newInfo)) {
+                AkttAPI.LOGGER.error("Расписания одинаковые и не нуждаются в обновлении");
+                return;
+            }
+        }
+
+        info = newInfo;
+        AkttAPI.LOGGER.info("Новое расписание было загружено");
+    }
+
+    public synchronized ScheduleInfo getInfo() {
+        return info;
     }
 
     private void startUpdateCycle(int repeatDelay) {
@@ -42,7 +59,6 @@ public class ScheduleHandler {
             @Override
             public void run() {
                     info = htmlScheduleParser.parse();
-                    info.setTeachersList(collectAllTeachers());
             }
         },1000, repeatDelay);
     }
@@ -53,7 +69,7 @@ public class ScheduleHandler {
 
     public ScheduleGroup getStudentScheduleGroup(String groupName) {
         if (info.groupsList().contains(groupName.toLowerCase())) {
-            for (ScheduleGroup group : info.fullSchedule()) {
+            for (ScheduleGroup group : info.studentsSchedule()) {
                 if (!group.groupName().equals(groupName.toLowerCase())) continue;
                 return group;
             }
@@ -65,8 +81,12 @@ public class ScheduleHandler {
         return getStudentScheduleGroup(group).getSubGroup(subGroup);
     }
 
-    public List<ScheduleGroup> getSchedule() {
-        return info.fullSchedule();
+    public List<ScheduleGroup> getStudentsSchedule() {
+        return info.studentsSchedule();
+    }
+
+    public List<ScheduleGroup> getTeachersSchedule() {
+        return info.teachersSchedule();
     }
 
     public List<String> getGroupsList() {
@@ -74,45 +94,13 @@ public class ScheduleHandler {
     }
 
     public ScheduleGroup getTeacherScheduleGroup(String teacherName) {
-        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(info.scheduleDate().toString(), null, teacherName);
-
-        if (!info.teachersList().contains(teacherName)) return teacherScheduleGroup;
-
-        for (ScheduleGroup group : info.fullSchedule()) {
-            for (ScheduleItem item : group.scheduleItems()) {
-                List<String> teachers = item.teacherNames();
-                if (teachers == null || !teachers.contains(teacherName)) continue;
-                ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupName(), teacherName, item.roomNumber(), item.subGroup(), ScheduleItemState.OK, info.scheduleDate());
-                teacherScheduleGroup.add(newItem);
+        if (info.teachersList().contains(teacherName.toLowerCase())) {
+            for (ScheduleGroup group : info.teachersSchedule()) {
+                if (!group.teacherName().equals(teacherName.toLowerCase())) continue;
+                return group;
             }
         }
-
-        var teacherScheduleItems = ScheduleParser.sortScheduleItems(teacherScheduleGroup);
-
-        teacherScheduleGroup.replaceScheduleItems(teacherScheduleItems);
-
-        return teacherScheduleGroup;
-    }
-
-    /**
-     * Собирает имена преподавателей из всех групп
-     * @return Список
-     */
-    private LinkedHashSet<String> collectAllTeachers() {
-        LinkedHashSet<String> teacherNames = new LinkedHashSet<>();
-
-        for (ScheduleGroup scheduleGroup : info.fullSchedule()) {
-            for (ScheduleItem scheduleItem : scheduleGroup.scheduleItems()) {
-                List<String> teacherName = scheduleItem.teacherNames();
-                if (teacherName == null) continue;
-                for (String name : teacherName) {
-                    if (name.isBlank()) continue;
-                    if (name.contains("указан")) continue;
-                    teacherNames.add(name);
-                }
-            }
-        }
-        return teacherNames;
+        throw new IllegalArgumentException("Преподаватель [%s] не найден!".formatted(teacherName));
     }
 
     public List<String> getTeachersList() {

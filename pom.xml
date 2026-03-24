@@ -15,12 +15,35 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+
     <dependencies>
+        <dependency>
+            <!--Библиотека для postgres баз данных-->
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq</artifactId>
+            <version>3.20.11</version>
+        </dependency>
+        <dependency>
+            <!--Библиотека для взаимодействия с .env файлом-->
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.2.0</version>
+        </dependency>
         <dependency>
             <!--Библиотека для парсинга html файлов-->
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>1.22.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.7</version>
         </dependency>
         <dependency>
             <!--Библиотека для работы с json-->

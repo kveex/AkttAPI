@@ -8,10 +8,7 @@ import org.kveex.schedule.SubGroup;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -22,6 +19,7 @@ public abstract class ScheduleParser {
 
     private static final List<String> staticRoomNames = List.of("библ.", "маст.", "дист.");
     private static final Pattern usualRoomPattern = Pattern.compile("\\d+[аб]?(?:/\\d+[аб]?)?");
+    private static List<ScheduleGroup> studentsSchedule;
 
     public abstract ScheduleInfo parse();
 
@@ -112,15 +110,49 @@ public abstract class ScheduleParser {
     }
 
     /**
+     * Собирает имена преподавателей из всех групп
+     * @return Список
+     */
+    public LinkedHashSet<String> collectAllTeachers() {
+        LinkedHashSet<String> teacherNames = new LinkedHashSet<>();
+
+        for (ScheduleGroup scheduleGroup : studentsSchedule) {
+            for (ScheduleItem scheduleItem : scheduleGroup.scheduleItems()) {
+                List<String> teacherName = scheduleItem.teacherNames();
+                if (teacherName == null) continue;
+                for (String name : teacherName) {
+                    if (name.isBlank()) continue;
+                    if (name.contains("указан")) continue;
+                    teacherNames.add(name);
+                }
+            }
+        }
+        return teacherNames;
+    }
+
+    /**
      * Проходится по документу и собирает расписания всех групп в список
      * @return Лист с объектами содержащими расписание для каждой группы
      */
-    public List<ScheduleGroup> makeSchedule() {
+    public List<ScheduleGroup> makeGroupsSchedule() {
         List<ScheduleGroup> scheduleGroups = new ArrayList<>();
         List<String> groupsList = provideGroupsList();
         for (String group : groupsList) {
             ScheduleGroup scheduleGroup = buildStudentScheduleGroup(group);
             scheduleGroups.add(scheduleGroup);
+        }
+        studentsSchedule = scheduleGroups;
+        return scheduleGroups;
+    }
+
+    public List<ScheduleGroup> makeTeachersSchedule() {
+        List<ScheduleGroup> scheduleGroups = new ArrayList<>();
+        Set<String> teachersList = collectAllTeachers();
+        for (ScheduleGroup group : studentsSchedule) {
+            for (String teacherName : teachersList) {
+                var newScheduleGroup = convertToTeacherScheduleGroup(teacherName, group);
+                scheduleGroups.add(newScheduleGroup);
+            }
         }
         return scheduleGroups;
     }
@@ -134,6 +166,23 @@ public abstract class ScheduleParser {
             scheduleGroup.addAll(scheduleItems);
         }
         return scheduleGroup;
+    }
+
+    public ScheduleGroup convertToTeacherScheduleGroup(String teacherName, ScheduleGroup group) {
+        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(group.scheduleDate(), null, teacherName);
+
+        for (ScheduleItem item : group.scheduleItems()) {
+            List<String> teachers = item.teacherNames();
+            if (teachers == null || !teachers.contains(teacherName)) continue;
+            ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupName(), teacherName, item.roomNumber(), item.subGroup(), ScheduleItemState.OK, item.scheduleDate());
+            teacherScheduleGroup.add(newItem);
+        }
+
+        var teacherScheduleItems = sortScheduleItems(teacherScheduleGroup);
+
+        teacherScheduleGroup.replaceScheduleItems(teacherScheduleItems);
+
+        return teacherScheduleGroup;
     }
 
     public <T> List<Pair<String, String>> getTimeAndInfoForScheduleGroup(String groupName,
