@@ -16,102 +16,102 @@ public class GetHandler {
         AkttAPI.LOGGER.info("Сделан запрос на главную страницу");
         context.json(Map.of("message", "Привет от АКТТ REST API"));
     }
-
-    @OpenApi(
-            summary = "Выдаёт расписание для указанной группы и подгруппы",
-            operationId = "getScheduleGroupDefinedSubGroup",
-            path = "/api/schedule/student/{group}/{subGroup}",
-            pathParams = {
-                    @OpenApiParam(
-                            name = "group",
-                            description = "Название учебной группы, обязательно со строчными буквами",
-                            example = "23-14ис",
-                            required = true
-                    ),
-                    @OpenApiParam(
-                            name = "subGroup",
-                            type = int.class,
-                            description = "Номер подгруппы: 1 - первая, 2 - вторая, 0 - обе",
-                            example = "1",
-                            required = true
-                    )
-            },
-            responses = {
-                    @OpenApiResponse(
-                            status = "200",
-                            content = {@OpenApiContent(from = ScheduleGroup.class)}),
-                    @OpenApiResponse(
-                            status = "400",
-                            description = "Подгруппа указана неверно"
-                    ),
-                    @OpenApiResponse(
-                            status = "404",
-                            description = "Группа не найдена"
-                    )
-            }
-    )
-    public static void getScheduleGroupDefinedSubGroup(Context context) {
-        var scheduleHandler = ScheduleHandler.getInstance();
-        String groupName = context.pathParam("group");
-        int subGroup;
-
-        try {
-            subGroup = Integer.parseInt(context.pathParam("subGroup"));
-        } catch (NumberFormatException e) {
-            context.status(HttpStatus.BAD_REQUEST);
-            context.json(Map.of("error", "подгруппа должна быть числом!"));
-            return;
-        }
-
-        try {
-            var scheduleGroup = scheduleHandler.getStudentScheduleGroup(groupName, SubGroup.toSubGroup(subGroup));
-            context.status(HttpStatus.OK);
-            context.json(scheduleGroup);
-            AkttAPI.LOGGER.info("Запрос на расписание группы {} для {} подгруппы", groupName, subGroup);
-        } catch (IllegalArgumentException e) {
-            context.status(HttpStatus.NOT_FOUND);
-            context.json(Map.of("error", e.toString()));
-            AkttAPI.LOGGER.error(e.toString());
-        }
-    }
-
-    @OpenApi(
-            summary = "Выдаёт расписание для указанной группы с обеими подгруппами",
-            operationId = "getScheduleGroupBothSubGroups",
-            path = "/api/schedule/student/{group}",
-            pathParams = {
-                    @OpenApiParam(
-                            name = "group",
-                            description = "Название учебной группы, обязательно не заглавными буквами",
-                            example = "23-14ис",
-                            required = true
-                    )
-            },
-            methods = HttpMethod.GET,
-            tags = {"Schedule"},
-            responses = {
-                    @OpenApiResponse(
-                            status = "200",
-                            content = {@OpenApiContent(from = ScheduleGroup.class)}),
-                    @OpenApiResponse(
-                            status = "404",
-                            description = "Группа не найдена"
-                    )
-            }
-    )
-    public static void getScheduleGroupBothSubGroups(Context context) {
-        String groupName = context.pathParam("group");
-        try {
-            var sch = ScheduleHandler.getInstance().getStudentScheduleGroup(groupName);
-            context.status(HttpStatus.OK);
-            context.json(sch);
-            AkttAPI.LOGGER.info("Запрос на расписание для группы {} для обеих подгрупп", groupName);
-        } catch (IllegalArgumentException e) {
-            context.status(HttpStatus.NOT_FOUND);
-            context.json(Map.of("error", e.toString()));
-            AkttAPI.LOGGER.error(e.toString());
-        }
-    }
+//
+//    @OpenApi(
+//            summary = "Выдаёт расписание для указанной группы и подгруппы",
+//            operationId = "getScheduleGroupDefinedSubGroup",
+//            path = "/api/schedule/student/{group}/{subGroup}",
+//            pathParams = {
+//                    @OpenApiParam(
+//                            name = "group",
+//                            description = "Название учебной группы, обязательно со строчными буквами",
+//                            example = "23-14ис",
+//                            required = true
+//                    ),
+//                    @OpenApiParam(
+//                            name = "subGroup",
+//                            type = int.class,
+//                            description = "Номер подгруппы: 1 - первая, 2 - вторая, 0 - обе",
+//                            example = "1",
+//                            required = true
+//                    )
+//            },
+//            responses = {
+//                    @OpenApiResponse(
+//                            status = "200",
+//                            content = {@OpenApiContent(from = ScheduleGroup.class)}),
+//                    @OpenApiResponse(
+//                            status = "400",
+//                            description = "Подгруппа указана неверно"
+//                    ),
+//                    @OpenApiResponse(
+//                            status = "404",
+//                            description = "Группа не найдена"
+//                    )
+//            }
+//    )
+//    public static void getScheduleGroupDefinedSubGroup(Context context) {
+//        var scheduleHandler = ScheduleHandler.getInstance();
+//        String groupName = context.pathParam("group");
+//        int subGroup;
+//
+//        try {
+//            subGroup = Integer.parseInt(context.pathParam("subGroup"));
+//        } catch (NumberFormatException e) {
+//            context.status(HttpStatus.BAD_REQUEST);
+//            context.json(Map.of("error", "подгруппа должна быть числом!"));
+//            return;
+//        }
+//
+//        try {
+//            var scheduleGroup = scheduleHandler.getStudentScheduleGroup(groupName, SubGroup.toSubGroup(subGroup));
+//            context.status(HttpStatus.OK);
+//            context.json(scheduleGroup);
+//            AkttAPI.LOGGER.info("Запрос на расписание группы {} для {} подгруппы", groupName, subGroup);
+//        } catch (IllegalArgumentException e) {
+//            context.status(HttpStatus.NOT_FOUND);
+//            context.json(Map.of("error", e.toString()));
+//            AkttAPI.LOGGER.error(e.toString());
+//        }
+//    }
+//
+//    @OpenApi(
+//            summary = "Выдаёт расписание для указанной группы с обеими подгруппами",
+//            operationId = "getScheduleGroupBothSubGroups",
+//            path = "/api/schedule/student/{group}",
+//            pathParams = {
+//                    @OpenApiParam(
+//                            name = "group",
+//                            description = "Название учебной группы, обязательно не заглавными буквами",
+//                            example = "23-14ис",
+//                            required = true
+//                    )
+//            },
+//            methods = HttpMethod.GET,
+//            tags = {"Schedule"},
+//            responses = {
+//                    @OpenApiResponse(
+//                            status = "200",
+//                            content = {@OpenApiContent(from = ScheduleGroup.class)}),
+//                    @OpenApiResponse(
+//                            status = "404",
+//                            description = "Группа не найдена"
+//                    )
+//            }
+//    )
+//    public static void getScheduleGroupBothSubGroups(Context context) {
+//        String groupName = context.pathParam("group");
+//        try {
+//            var sch = ScheduleHandler.getInstance().getStudentScheduleGroup(groupName);
+//            context.status(HttpStatus.OK);
+//            context.json(sch);
+//            AkttAPI.LOGGER.info("Запрос на расписание для группы {} для обеих подгрупп", groupName);
+//        } catch (IllegalArgumentException e) {
+//            context.status(HttpStatus.NOT_FOUND);
+//            context.json(Map.of("error", e.toString()));
+//            AkttAPI.LOGGER.error(e.toString());
+//        }
+//    }
 
     @OpenApi(
             summary = "Выдаёт дату на которую рассчитано расписание",
@@ -126,33 +126,32 @@ public class GetHandler {
             }
     )
     public static void getScheduleDate(Context context) {
-        var scheduleHandler = ScheduleHandler.getInstance();
-        String scheduleDate = scheduleHandler.getScheduleDate().toString();
+        String scheduleDate = ScheduleHandler.getInstance().getScheduleDate().toString();
         context.status(HttpStatus.OK);
         context.json(Map.of("scheduleDate", scheduleDate));
         AkttAPI.LOGGER.info("Запрос на дату расписания");
     }
-
-    @OpenApi(
-            summary = "Выдаёт расписание всех групп, с обеими подгруппами",
-            operationId = "getSchedule",
-            path = "/api/schedule/",
-            methods = HttpMethod.GET,
-            tags = {"Schedule"},
-            responses = {
-                    @OpenApiResponse(
-                            status = "200",
-                            content = {@OpenApiContent(from = ScheduleGroup.class)})
-            }
-    )
-    public static void getSchedule(Context context) {
-        var scheduleHandler = ScheduleHandler.getInstance();
-        var schedule = scheduleHandler.getStudentsSchedule();
-        String scheduleDate = scheduleHandler.getScheduleDate().toString();
-        context.status(HttpStatus.OK);
-        context.json(Map.of("scheduleDate", scheduleDate, "schedule", schedule));
-        AkttAPI.LOGGER.info("Запрос на полное расписание");
-    }
+//
+//    @OpenApi(
+//            summary = "Выдаёт расписание всех групп, с обеими подгруппами",
+//            operationId = "getSchedule",
+//            path = "/api/schedule/",
+//            methods = HttpMethod.GET,
+//            tags = {"Schedule"},
+//            responses = {
+//                    @OpenApiResponse(
+//                            status = "200",
+//                            content = {@OpenApiContent(from = ScheduleGroup.class)})
+//            }
+//    )
+//    public static void getSchedule(Context context) {
+//        var scheduleHandler = ScheduleHandler.getInstance();
+//        var schedule = scheduleHandler.getStudentsSchedule();
+//        String scheduleDate = scheduleHandler.getScheduleDate().toString();
+//        context.status(HttpStatus.OK);
+//        context.json(Map.of("scheduleDate", scheduleDate, "schedule", schedule));
+//        AkttAPI.LOGGER.info("Запрос на полное расписание");
+//    }
 
     @OpenApi(
             summary = "Выдаёт список названий всех групп",
@@ -194,17 +193,61 @@ public class GetHandler {
         context.json(Map.of("teachersList", teachers));
         AkttAPI.LOGGER.info("Запрос на список преподавателей");
     }
+//
+//    @OpenApi(
+//            summary = "Выдаёт расписание для указанного преподавателя",
+//            operationId = "getTeacherSchedule",
+//            path = "/api/schedule/teacher/{teacher}",
+//            pathParams = {
+//                    @OpenApiParam(
+//                            name = "teacher",
+//                            description = "Имя и инициалы преподавателя, должны соответствовать формату",
+//                            example = "Маликов М.В.",
+//                            required = true
+//                    )
+//            },
+//            methods = HttpMethod.GET,
+//            tags = {"Schedule"},
+//            responses = {
+//                    @OpenApiResponse(
+//                            status = "200",
+//                            content = {@OpenApiContent(from = ScheduleGroup.class)}),
+//                    @OpenApiResponse(
+//                            status = "404",
+//                            description = "Преподаватель не найден"
+//                    )
+//            }
+//    )
+//    public static void getTeacherSchedule(Context context) {
+//        var scheduleHandler = ScheduleHandler.getInstance();
+//        String teacherName = context.pathParam("teacher");
+//        var scheduleGroup = scheduleHandler.getTeacherScheduleGroup(teacherName);
+//        if (scheduleGroup.scheduleItems().isEmpty()) {
+//            context.status(HttpStatus.NOT_FOUND);
+//            context.json(Map.of("error", "Преподаватель [%s] не найден".formatted(teacherName)));
+//            AkttAPI.LOGGER.error("Преподаватель [{}] не найден", teacherName);
+//        } else {
+//            context.status(HttpStatus.OK);
+//            context.json(scheduleGroup);
+//            AkttAPI.LOGGER.info("Запрос на расписание для преподавателя {}", teacherName);
+//        }
+//    }
+
 
     @OpenApi(
-            summary = "Выдаёт расписание для указанного преподавателя",
-            operationId = "getTeacherSchedule",
-            path = "/api/schedule/teacher/{teacher}",
-            pathParams = {
+            summary = "Выдаёт расписание для студентов",
+            operationId = "getStudentSchedule",
+            path = "/api/schedule/student",
+            queryParams = {
                     @OpenApiParam(
-                            name = "teacher",
-                            description = "Имя и инициалы преподавателя, должны соответствовать формату",
-                            example = "Маликов М.В.",
-                            required = true
+                            name = "group",
+                            description = "Группа для которой нужно взять расписание",
+                            example = "23-14ИС"
+                    ),
+                    @OpenApiParam(
+                            name = "subgroup",
+                            description = "Подгруппа для которой нужно взять расписание",
+                            example = "1"
                     )
             },
             methods = HttpMethod.GET,
@@ -212,25 +255,110 @@ public class GetHandler {
             responses = {
                     @OpenApiResponse(
                             status = "200",
-                            content = {@OpenApiContent(from = ScheduleGroup.class)}),
+                            content = {
+                                    @OpenApiContent(from = ScheduleGroup.class),
+                                    @OpenApiContent(from = Map.class)
+                            }
+                    ),
+                    @OpenApiResponse(
+                            status = "400",
+                            description = "Подгруппа указана не в формате числа",
+                            content = {@OpenApiContent(from = Map.class)}
+                    ),
                     @OpenApiResponse(
                             status = "404",
-                            description = "Преподаватель не найден"
+                            description = "Расписание для этой группа не было найдено",
+                            content = { @OpenApiContent(from = Map.class) }
                     )
             }
     )
-    public static void getTeacherSchedule(Context context) {
+    public static void studentSchedule(Context context) {
         var scheduleHandler = ScheduleHandler.getInstance();
-        String teacherName = context.pathParam("teacher");
-        var scheduleGroup = scheduleHandler.getTeacherScheduleGroup(teacherName);
-        if (scheduleGroup.scheduleItems().isEmpty()) {
+        String group = context.queryParam("group");
+        String subgroup_str = context.queryParam("subgroup");
+
+        try {
+            if (group != null) {
+                ScheduleGroup scheduleGroup;
+                if (subgroup_str != null) {
+                    int subgroup;
+                    try {
+                        subgroup = Integer.parseInt(subgroup_str);
+                    } catch (NumberFormatException _) {
+                        String errorStr = "Подгруппа указана в неверном формате! [%s] Доступные форматы: 1, 2, любое число (обе подгруппы)".formatted(subgroup_str);
+                        AkttAPI.LOGGER.info(errorStr);
+                        context.status(HttpStatus.BAD_REQUEST);
+                        context.json(Map.of("error", errorStr));
+                        return;
+                    }
+                    scheduleGroup = scheduleHandler.getStudentScheduleGroup(group, SubGroup.toSubGroup(subgroup));
+                } else {
+                    scheduleGroup = scheduleHandler.getStudentScheduleGroup(group);
+                }
+                context.status(HttpStatus.OK);
+                context.json(scheduleGroup);
+                return;
+            }
+        } catch (IllegalArgumentException e) {
+            AkttAPI.LOGGER.error(e.getMessage());
             context.status(HttpStatus.NOT_FOUND);
-            context.json(Map.of("error", "Преподаватель [%s] не найден".formatted(teacherName)));
-            AkttAPI.LOGGER.error("Преподаватель [{}] не найден", teacherName);
-        } else {
-            context.status(HttpStatus.OK);
-            context.json(scheduleGroup);
-            AkttAPI.LOGGER.info("Запрос на расписание для преподавателя {}", teacherName);
+            context.json(Map.of("error", e.getMessage()));
+            return;
         }
+
+        var schedule = scheduleHandler.getStudentsSchedule();
+        context.status(HttpStatus.OK);
+        context.json(Map.of("scheduleDate", scheduleHandler.getScheduleDate().toString(), "schedule", schedule));
+    }
+
+    @OpenApi(
+            summary = "Выдаёт расписание для преподавателей",
+            operationId = "getTeacherSchedule",
+            path = "/api/schedule/teacher",
+            queryParams = {
+                    @OpenApiParam(
+                            name = "name",
+                            description = "Имя преподавателя для которого нужно взять расписание",
+                            example = "Макаров В.В."
+                    )
+            },
+            methods = HttpMethod.GET,
+            tags = {"Schedule"},
+            responses = {
+                    @OpenApiResponse(
+                            status = "200",
+                            content = {
+                                    @OpenApiContent(from = ScheduleGroup.class),
+                                    @OpenApiContent(from = Map.class)
+                            }
+                    ),
+                    @OpenApiResponse(
+                            status = "404",
+                            description = "Расписания для этого преподавателя не было найдено или преподаватель указан неверно",
+                            content = { @OpenApiContent(from = Map.class) }
+                    )
+            }
+    )
+    public static void teacherSchedule(Context context) {
+        var scheduleHandler = ScheduleHandler.getInstance();
+        String teacherName = context.queryParam("name");
+
+        try {
+            if (teacherName != null) {
+                ScheduleGroup scheduleGroup = scheduleHandler.getTeacherScheduleGroup(teacherName);
+                context.status(HttpStatus.OK);
+                context.json(scheduleGroup);
+                return;
+            }
+        } catch (IllegalArgumentException e) {
+            AkttAPI.LOGGER.error(e.getMessage());
+            context.status(HttpStatus.NOT_FOUND);
+            context.json(Map.of("error", e.getMessage()));
+            return;
+        }
+
+        var schedule = scheduleHandler.getTeachersSchedule();
+        context.status(HttpStatus.OK);
+        context.json(Map.of("scheduleDate", scheduleHandler.getScheduleDate().toString(), "schedule", schedule));
     }
 }

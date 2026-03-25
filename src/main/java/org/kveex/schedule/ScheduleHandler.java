@@ -49,10 +49,6 @@ public class ScheduleHandler {
         AkttAPI.LOGGER.info("Новое расписание было загружено");
     }
 
-    public synchronized ScheduleInfo getInfo() {
-        return info;
-    }
-
     private void startUpdateCycle(int repeatDelay) {
         Timer timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
@@ -67,7 +63,7 @@ public class ScheduleHandler {
         return info.scheduleDate();
     }
 
-    public ScheduleGroup getStudentScheduleGroup(String groupName) {
+    public ScheduleGroup getStudentScheduleGroup(String groupName) throws IllegalArgumentException {
         if (info.groupsList().contains(groupName.toLowerCase())) {
             for (ScheduleGroup group : info.studentsSchedule()) {
                 if (!group.groupName().equals(groupName.toLowerCase())) continue;
@@ -93,10 +89,12 @@ public class ScheduleHandler {
         return info.groupsList();
     }
 
-    public ScheduleGroup getTeacherScheduleGroup(String teacherName) {
-        if (info.teachersList().contains(teacherName.toLowerCase())) {
+    public ScheduleGroup getTeacherScheduleGroup(String teacherName) throws IllegalArgumentException {
+        if (info.teachersList().contains(teacherName)) {
             for (ScheduleGroup group : info.teachersSchedule()) {
-                if (!group.teacherName().equals(teacherName.toLowerCase())) continue;
+                System.out.println(group);
+                if (!group.teacherName().equals(teacherName)) continue;
+                System.out.println("found: " + group);
                 return group;
             }
         }

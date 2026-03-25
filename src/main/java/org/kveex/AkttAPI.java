@@ -2,6 +2,7 @@ package org.kveex;
 
 import io.javalin.Javalin;
 import io.javalin.openapi.plugin.OpenApiPlugin;
+import io.javalin.openapi.plugin.OpenApiPluginConfiguration;
 import io.javalin.openapi.plugin.swagger.SwaggerPlugin;
 import io.javalin.util.JavalinBindException;
 import org.kveex.api.ArgsParser;
@@ -32,29 +33,15 @@ public class AkttAPI {
 
     private static void startApp() {
         Javalin app = Javalin.create(config -> {
-                config.registerPlugin(new OpenApiPlugin(openapi -> {
-                    openapi.withDefinitionConfiguration((_, builder) -> {
-                        builder.info(info -> {
-                            info.title("AKTT API");
-                            info.description("API предоставляющая доступ к некоторым услугам AKTT");
-                            info.version("1.2.1");
-                            info.withLicense(license -> {
-                                license.name("MIT");
-                                license.identifier("MIT");
-                            });
-                        });
-                    });
-                }));
+                config.registerPlugin(new OpenApiPlugin(AkttAPI::configureOpenApi));
 
                 config.registerPlugin(new SwaggerPlugin());
 
                 config.routes.get("/", GetHandler::showTest);
                 config.routes.get("/api/schedule/groups", GetHandler::getGroupsList);
-                config.routes.get("/api/schedule/student/{group}", GetHandler::getScheduleGroupBothSubGroups);
-                config.routes.get("/api/schedule/student/{group}/{subGroup}", GetHandler::getScheduleGroupDefinedSubGroup);
                 config.routes.get("/api/schedule/teachers", GetHandler::getTeachersList);
-                config.routes.get("/api/schedule/teacher/{teacher}", GetHandler::getTeacherSchedule);
-                config.routes.get("/api/schedule/", GetHandler::getSchedule);
+                config.routes.get("/api/schedule/student", GetHandler::studentSchedule);
+                config.routes.get("/api/schedule/teacher", GetHandler::teacherSchedule);
                 config.routes.get("/api/schedule/date", GetHandler::getScheduleDate);
                 config.routes.post("/api/certificate-upload", PostHandler::handleCertificate);
                 config.routes.post("/api/pdf-upload", PostHandler::handlePdfUpload);
@@ -70,5 +57,17 @@ public class AkttAPI {
 
         LOGGER.info("API запущено на порту: {}", port);
         LOGGER.info("Swagger UI: <server-ip>:{}/swagger", port);
+    }
+
+    private static void configureOpenApi(OpenApiPluginConfiguration openapi) {
+        openapi.withDefinitionConfiguration((_, builder) -> builder.info(info -> {
+            info.title("AKTT API");
+            info.description("API предоставляющая доступ к некоторым услугам AKTT");
+            info.version("1.2.1");
+            info.withLicense(license -> {
+                license.name("MIT");
+                license.identifier("MIT");
+            });
+        }));
     }
 }

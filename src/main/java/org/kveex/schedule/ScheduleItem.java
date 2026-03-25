@@ -61,7 +61,7 @@ public record ScheduleItem(String time, String subjectName, String groupName, St
         for (String teacherName : teacherNames) {
             finalTeacherNames.add(teacherName.strip());
         }
-        return teacherNamePartsAmount >= 2 ? finalTeacherNames : null;
+        return teacherNamePartsAmount > 1 ? finalTeacherNames : null;
     }
 
     public int timeToInt() {

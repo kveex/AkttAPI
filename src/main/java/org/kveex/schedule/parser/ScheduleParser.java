@@ -169,10 +169,11 @@ public abstract class ScheduleParser {
     }
 
     public ScheduleGroup convertToTeacherScheduleGroup(String teacherName, ScheduleGroup group) {
-        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(group.scheduleDate(), null, teacherName);
+        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(group.scheduleDate(), group.groupName(), teacherName);
 
         for (ScheduleItem item : group.scheduleItems()) {
             List<String> teachers = item.teacherNames();
+            System.out.println(teachers);
             if (teachers == null || !teachers.contains(teacherName)) continue;
             ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupName(), teacherName, item.roomNumber(), item.subGroup(), ScheduleItemState.OK, item.scheduleDate());
             teacherScheduleGroup.add(newItem);
