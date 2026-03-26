@@ -5,7 +5,7 @@ import io.javalin.http.HttpStatus;
 import io.javalin.openapi.*;
 import org.kveex.AkttAPI;
 import org.kveex.schedule.SubGroup;
-import org.kveex.schedule.ScheduleGroup;
+import org.kveex.schedule.LessonGroup;
 import org.kveex.schedule.ScheduleHandler;
 
 import java.util.List;
@@ -256,7 +256,7 @@ public class GetHandler {
                     @OpenApiResponse(
                             status = "200",
                             content = {
-                                    @OpenApiContent(from = ScheduleGroup.class),
+                                    @OpenApiContent(from = LessonGroup.class),
                                     @OpenApiContent(from = Map.class)
                             }
                     ),
@@ -279,7 +279,7 @@ public class GetHandler {
 
         try {
             if (group != null) {
-                ScheduleGroup scheduleGroup;
+                LessonGroup lessonGroup;
                 if (subgroup_str != null) {
                     int subgroup;
                     try {
@@ -291,12 +291,12 @@ public class GetHandler {
                         context.json(Map.of("error", errorStr));
                         return;
                     }
-                    scheduleGroup = scheduleHandler.getStudentScheduleGroup(group, SubGroup.toSubGroup(subgroup));
+                    lessonGroup = scheduleHandler.getStudentScheduleGroup(group, SubGroup.toSubGroup(subgroup));
                 } else {
-                    scheduleGroup = scheduleHandler.getStudentScheduleGroup(group);
+                    lessonGroup = scheduleHandler.getStudentScheduleGroup(group);
                 }
                 context.status(HttpStatus.OK);
-                context.json(scheduleGroup);
+                context.json(lessonGroup);
                 return;
             }
         } catch (IllegalArgumentException e) {
@@ -328,7 +328,7 @@ public class GetHandler {
                     @OpenApiResponse(
                             status = "200",
                             content = {
-                                    @OpenApiContent(from = ScheduleGroup.class),
+                                    @OpenApiContent(from = LessonGroup.class),
                                     @OpenApiContent(from = Map.class)
                             }
                     ),
@@ -345,9 +345,9 @@ public class GetHandler {
 
         try {
             if (teacherName != null) {
-                ScheduleGroup scheduleGroup = scheduleHandler.getTeacherScheduleGroup(teacherName);
+                LessonGroup lessonGroup = scheduleHandler.getTeacherScheduleGroup(teacherName);
                 context.status(HttpStatus.OK);
-                context.json(scheduleGroup);
+                context.json(lessonGroup);
                 return;
             }
         } catch (IllegalArgumentException e) {

@@ -5,8 +5,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-public record ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state, LocalDate scheduleDate) {
-    public ScheduleItem(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, ScheduleItemState state, LocalDate scheduleDate) {
+public record Lesson(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, LessonState state, LocalDate scheduleDate) {
+    public Lesson(String time, String subjectName, String groupName, String teacherName, String roomNumber, SubGroup subGroup, LessonState state, LocalDate scheduleDate) {
         this.subjectName = subjectName;
         this.groupName = groupName;
         this.teacherName = teacherName;
@@ -61,7 +61,7 @@ public record ScheduleItem(String time, String subjectName, String groupName, St
         for (String teacherName : teacherNames) {
             finalTeacherNames.add(teacherName.strip());
         }
-        return teacherNamePartsAmount > 1 ? finalTeacherNames : null;
+        return teacherNamePartsAmount >= 2 ? finalTeacherNames : null;
     }
 
     public int timeToInt() {

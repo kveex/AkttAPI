@@ -1,9 +1,9 @@
 package org.kveex.schedule.parser;
 
 import org.jetbrains.annotations.NotNull;
-import org.kveex.schedule.ScheduleGroup;
-import org.kveex.schedule.ScheduleItem;
-import org.kveex.schedule.ScheduleItemState;
+import org.kveex.schedule.LessonGroup;
+import org.kveex.schedule.Lesson;
+import org.kveex.schedule.LessonState;
 import org.kveex.schedule.SubGroup;
 
 import java.time.LocalDate;
@@ -19,7 +19,7 @@ public abstract class ScheduleParser {
 
     private static final List<String> staticRoomNames = List.of("библ.", "маст.", "дист.");
     private static final Pattern usualRoomPattern = Pattern.compile("\\d+[аб]?(?:/\\d+[аб]?)?");
-    private static List<ScheduleGroup> studentsSchedule;
+    private static List<LessonGroup> studentsSchedule;
 
     public abstract ScheduleInfo parse();
 
@@ -116,9 +116,9 @@ public abstract class ScheduleParser {
     public LinkedHashSet<String> collectAllTeachers() {
         LinkedHashSet<String> teacherNames = new LinkedHashSet<>();
 
-        for (ScheduleGroup scheduleGroup : studentsSchedule) {
-            for (ScheduleItem scheduleItem : scheduleGroup.scheduleItems()) {
-                List<String> teacherName = scheduleItem.teacherNames();
+        for (LessonGroup lessonGroup : studentsSchedule) {
+            for (Lesson lesson : lessonGroup.lessons()) {
+                List<String> teacherName = lesson.teacherNames();
                 if (teacherName == null) continue;
                 for (String name : teacherName) {
                     if (name.isBlank()) continue;
@@ -134,56 +134,65 @@ public abstract class ScheduleParser {
      * Проходится по документу и собирает расписания всех групп в список
      * @return Лист с объектами содержащими расписание для каждой группы
      */
-    public List<ScheduleGroup> makeGroupsSchedule() {
-        List<ScheduleGroup> scheduleGroups = new ArrayList<>();
+    public List<LessonGroup> makeGroupsSchedule() {
+        List<LessonGroup> lessonGroups = new ArrayList<>();
         List<String> groupsList = provideGroupsList();
         for (String group : groupsList) {
-            ScheduleGroup scheduleGroup = buildStudentScheduleGroup(group);
-            scheduleGroups.add(scheduleGroup);
+            LessonGroup lessonGroup = buildStudentScheduleGroup(group);
+            lessonGroups.add(lessonGroup);
         }
-        studentsSchedule = scheduleGroups;
-        return scheduleGroups;
+        studentsSchedule = lessonGroups;
+        return lessonGroups;
     }
 
-    public List<ScheduleGroup> makeTeachersSchedule() {
-        List<ScheduleGroup> scheduleGroups = new ArrayList<>();
+    public List<LessonGroup> makeTeachersSchedule() {
         Set<String> teachersList = collectAllTeachers();
-        for (ScheduleGroup group : studentsSchedule) {
-            for (String teacherName : teachersList) {
-                var newScheduleGroup = convertToTeacherScheduleGroup(teacherName, group);
-                scheduleGroups.add(newScheduleGroup);
+        Map<String, LessonGroup> teachersScheduleMap = new LinkedHashMap<>();
+
+        for (String teacherName : teachersList) {
+            teachersScheduleMap.put(teacherName, new LessonGroup(collectScheduleDate().toString(), null, teacherName));
+        }
+
+        for (LessonGroup studentGroup : studentsSchedule) {
+            for (Lesson item : studentGroup.lessons()) {
+                List<String> teachers = item.teacherNames();
+                if (teachers == null) continue;
+
+                for (String teacherName : teachers) {
+                    LessonGroup teacherLessonGroup = teachersScheduleMap.get(teacherName);
+                    if (teacherLessonGroup == null) continue;
+
+                    Lesson teacherItem = new Lesson(
+                            item.time(),
+                            item.subjectName(),
+                            studentGroup.groupName(),
+                            teacherName,
+                            item.roomNumber(),
+                            item.subGroup(),
+                            item.state(),
+                            item.scheduleDate()
+                    );
+                    teacherLessonGroup.add(teacherItem);
+                }
             }
         }
-        return scheduleGroups;
+
+        for (LessonGroup teacherLessonGroup : teachersScheduleMap.values()) {
+            teacherLessonGroup.replaceScheduleItems(sortScheduleItems(teacherLessonGroup));
+        }
+
+        return new ArrayList<>(teachersScheduleMap.values());
     }
 
-    public ScheduleGroup buildStudentScheduleGroup(String groupName) {
+    public LessonGroup buildStudentScheduleGroup(String groupName) {
         LocalDate scheduleDate = collectScheduleDate();
-        ScheduleGroup scheduleGroup = new ScheduleGroup(scheduleDate.toString(), groupName, null);
+        LessonGroup lessonGroup = new LessonGroup(scheduleDate.toString(), groupName, null);
         var infoList = provideTimeAndInfoForScheduleGroup(groupName);
         for (Pair<String, String> info : infoList) {
-            List<ScheduleItem> scheduleItems = buildScheduleItem(groupName, info.getFirst(), info.getSecond(), scheduleDate);
-            scheduleGroup.addAll(scheduleItems);
+            List<Lesson> lessons = buildScheduleItem(groupName, info.getFirst(), info.getSecond(), scheduleDate);
+            lessonGroup.addAll(lessons);
         }
-        return scheduleGroup;
-    }
-
-    public ScheduleGroup convertToTeacherScheduleGroup(String teacherName, ScheduleGroup group) {
-        ScheduleGroup teacherScheduleGroup = new ScheduleGroup(group.scheduleDate(), group.groupName(), teacherName);
-
-        for (ScheduleItem item : group.scheduleItems()) {
-            List<String> teachers = item.teacherNames();
-            System.out.println(teachers);
-            if (teachers == null || !teachers.contains(teacherName)) continue;
-            ScheduleItem newItem = new ScheduleItem(item.time(), item.subjectName(), group.groupName(), teacherName, item.roomNumber(), item.subGroup(), ScheduleItemState.OK, item.scheduleDate());
-            teacherScheduleGroup.add(newItem);
-        }
-
-        var teacherScheduleItems = sortScheduleItems(teacherScheduleGroup);
-
-        teacherScheduleGroup.replaceScheduleItems(teacherScheduleItems);
-
-        return teacherScheduleGroup;
+        return lessonGroup;
     }
 
     public <T> List<Pair<String, String>> getTimeAndInfoForScheduleGroup(String groupName,
@@ -238,9 +247,9 @@ public abstract class ScheduleParser {
         return timeAndInfoList;
     }
 
-    public static @NotNull List<ScheduleItem> sortScheduleItems(ScheduleGroup teacherScheduleGroup) {
-        var teacherScheduleItems = teacherScheduleGroup.scheduleItems();
-        teacherScheduleItems.sort(Comparator.comparingInt(ScheduleItem::timeToInt));
+    public static @NotNull List<Lesson> sortScheduleItems(LessonGroup teacherLessonGroup) {
+        var teacherScheduleItems = teacherLessonGroup.lessons();
+        teacherScheduleItems.sort(Comparator.comparingInt(Lesson::timeToInt));
         return teacherScheduleItems;
     }
 
@@ -250,14 +259,14 @@ public abstract class ScheduleParser {
      * @param info Информация об учебной паре (Название предмета, Преподаватель, кабинет)
      * @return Класс с информацией об учебной паре
      */
-    public List<ScheduleItem> buildScheduleItem(String groupName, String time, String info, LocalDate scheduleDate) {
-        List<ScheduleItem> result = new ArrayList<>();
+    public List<Lesson> buildScheduleItem(String groupName, String time, String info, LocalDate scheduleDate) {
+        List<Lesson> result = new ArrayList<>();
         String[] subjects = info.split("\\s*–\\s*");
         String subjectName;
         String teacherName;
         String roomNumber;
         SubGroup itemSubGroup = subjects.length > 1 ? SubGroup.FIRST : SubGroup.BOTH;
-        ScheduleItemState state = ScheduleItemState.OK;
+        LessonState state = LessonState.OK;
 
         for (String subject : subjects) {
             String[] parts = subject.split(" ");
@@ -297,7 +306,7 @@ public abstract class ScheduleParser {
                 roomNumber = "Не указан";
             }
 
-            ScheduleItem staticCaseItem = checkForStaticCases(time, groupName, subject, roomNumber, itemSubGroup, scheduleDate);
+            Lesson staticCaseItem = checkForStaticCases(time, groupName, subject, roomNumber, itemSubGroup, scheduleDate);
             if (staticCaseItem != null) {
                 result.add(staticCaseItem);
                 continue;
@@ -328,11 +337,11 @@ public abstract class ScheduleParser {
 
             if (fullDistant) {
                 roomNumber = "дист.";
-                state = ScheduleItemState.DISTANT;
+                state = LessonState.DISTANT;
             }
 
-            ScheduleItem scheduleItem = new ScheduleItem(time, subjectName, groupName, teacherName.trim(), roomNumber, itemSubGroup, state, scheduleDate);
-            result.add(scheduleItem);
+            Lesson lesson = new Lesson(time, subjectName, groupName, teacherName.trim(), roomNumber, itemSubGroup, state, scheduleDate);
+            result.add(lesson);
         }
         return result;
     }
@@ -415,18 +424,18 @@ public abstract class ScheduleParser {
      * @param roomNumber Кабинет проведения учебной пары
      * @return Класс с информацией об особом случае учебной пары
      */
-    public ScheduleItem checkForStaticCases(String time, String groupName, String info, String roomNumber, SubGroup subGroup, LocalDate scheduleDate) {
+    public Lesson checkForStaticCases(String time, String groupName, String info, String roomNumber, SubGroup subGroup, LocalDate scheduleDate) {
         String caseText = info.toLowerCase();
         String caseTime = time.toLowerCase();
         String[] parts = info.split(" ");
         StringBuilder teacherName = new StringBuilder();
 
         if (caseText.contains("нет пары")) {
-            return new ScheduleItem(time, "Нет пары", groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.EMPTY, scheduleDate);
+            return new Lesson(time, "Нет пары", groupName, "Не указан", roomNumber, subGroup, LessonState.EMPTY, scheduleDate);
         }
 
         if (caseText.contains("о важном")) {
-            return new ScheduleItem(time, "Разговор о важном", groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.OK, scheduleDate);
+            return new Lesson(time, "Разговор о важном", groupName, "Не указан", roomNumber, subGroup, LessonState.OK, scheduleDate);
         }
 
         if (caseText.contains("лыжи снежинка")) {
@@ -436,7 +445,7 @@ public abstract class ScheduleParser {
                     teacherName.append(parts[i]).append(" ");
                 }
             }
-            return new ScheduleItem(time, subjectName, groupName, teacherName.toString().trim(), "Снежинка", subGroup, ScheduleItemState.OK, scheduleDate);
+            return new Lesson(time, subjectName, groupName, teacherName.toString().trim(), "Снежинка", subGroup, LessonState.OK, scheduleDate);
         }
 
         if (caseTime.contains("пп") || caseTime.contains("уп")) {
@@ -445,11 +454,11 @@ public abstract class ScheduleParser {
                 teacherName.append(part).append(" ");
             }
 
-            return new ScheduleItem(time, "Практика", groupName, teacherName.toString().trim(), roomNumber, subGroup, ScheduleItemState.OK, scheduleDate);
+            return new Lesson(time, "Практика", groupName, teacherName.toString().trim(), roomNumber, subGroup, LessonState.OK, scheduleDate);
         }
 
         if (caseText.contains("(сам.раб.)")) {
-            return new ScheduleItem(time, info, groupName, "Не указан", roomNumber, subGroup, ScheduleItemState.OK, scheduleDate);
+            return new Lesson(time, info, groupName, "Не указан", roomNumber, subGroup, LessonState.OK, scheduleDate);
         }
 
         return null;

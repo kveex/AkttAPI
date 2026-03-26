@@ -63,9 +63,9 @@ public class ScheduleHandler {
         return info.scheduleDate();
     }
 
-    public ScheduleGroup getStudentScheduleGroup(String groupName) throws IllegalArgumentException {
+    public LessonGroup getStudentScheduleGroup(String groupName) throws IllegalArgumentException {
         if (info.groupsList().contains(groupName.toLowerCase())) {
-            for (ScheduleGroup group : info.studentsSchedule()) {
+            for (LessonGroup group : info.studentsSchedule()) {
                 if (!group.groupName().equals(groupName.toLowerCase())) continue;
                 return group;
             }
@@ -73,15 +73,15 @@ public class ScheduleHandler {
         throw new IllegalArgumentException("Группа [%s] не найдена!".formatted(groupName));
     }
 
-    public ScheduleGroup getStudentScheduleGroup(String group, SubGroup subGroup) {
+    public LessonGroup getStudentScheduleGroup(String group, SubGroup subGroup) {
         return getStudentScheduleGroup(group).getSubGroup(subGroup);
     }
 
-    public List<ScheduleGroup> getStudentsSchedule() {
+    public List<LessonGroup> getStudentsSchedule() {
         return info.studentsSchedule();
     }
 
-    public List<ScheduleGroup> getTeachersSchedule() {
+    public List<LessonGroup> getTeachersSchedule() {
         return info.teachersSchedule();
     }
 
@@ -89,9 +89,9 @@ public class ScheduleHandler {
         return info.groupsList();
     }
 
-    public ScheduleGroup getTeacherScheduleGroup(String teacherName) throws IllegalArgumentException {
+    public LessonGroup getTeacherScheduleGroup(String teacherName) throws IllegalArgumentException {
         if (info.teachersList().contains(teacherName)) {
-            for (ScheduleGroup group : info.teachersSchedule()) {
+            for (LessonGroup group : info.teachersSchedule()) {
                 System.out.println(group);
                 if (!group.teacherName().equals(teacherName)) continue;
                 System.out.println("found: " + group);
