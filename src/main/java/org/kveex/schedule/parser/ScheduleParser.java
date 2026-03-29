@@ -1,8 +1,8 @@
 package org.kveex.schedule.parser;
 
 import org.jetbrains.annotations.NotNull;
-import org.kveex.schedule.LessonGroup;
 import org.kveex.schedule.Lesson;
+import org.kveex.schedule.LessonGroup;
 import org.kveex.schedule.LessonState;
 import org.kveex.schedule.SubGroup;
 
@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class ScheduleParser {
@@ -18,7 +19,8 @@ public abstract class ScheduleParser {
     public static final int GROUP_COLUMN_WIDTH = 3;
 
     private static final List<String> staticRoomNames = List.of("библ.", "маст.", "дист.");
-    private static final Pattern usualRoomPattern = Pattern.compile("\\d+[аб]?(?:/\\d+[аб]?)?");
+    private static final Pattern roomPattern = Pattern.compile("^\\d{1,3}[аб]?(?:/\\d{1,3}[аб]?)?$");
+    private static final Pattern teacherNamePattern = Pattern.compile("[А-ЯЁ][а-яё]* [А-ЯЁ]\\.[А-ЯЁ]\\.");
     private static List<LessonGroup> studentsSchedule;
 
     public abstract ScheduleInfo parse();
@@ -29,22 +31,22 @@ public abstract class ScheduleParser {
      */
     public abstract boolean isWholeScheduleDistant();
 
-    public abstract List<String> provideGroupsList();
+    public abstract Set<String> provideGroupsList();
 
     public abstract LocalDateTime collectScheduleEditDate();
 
     public abstract List<String> provideScheduleDateLines();
-    public abstract List<Pair<String, String>> provideTimeAndInfoForScheduleGroup(String groupName);
+    public abstract List<Info> provideTimeAndInfoForScheduleGroup();
 
     /**
      * Проходится по документу и собирает все группы
      * @return список со всеми группами
      */
-    public <T> List<String> collectAllGroups(
+    public <T> Set<String> collectAllGroups(
             Iterable<T> rows,
             Function<T, List<String>> rowToCells
     ) {
-        List<String> groups = new ArrayList<>();
+        Set<String> groups = new HashSet<>();
         int[] columnIndices = new int[]{0, 3, 6};
 
         for (T row : rows) {
@@ -130,121 +132,87 @@ public abstract class ScheduleParser {
         return teacherNames;
     }
 
-    /**
-     * Проходится по документу и собирает расписания всех групп в список
-     * @return Лист с объектами содержащими расписание для каждой группы
-     */
-    public List<LessonGroup> makeGroupsSchedule() {
-        List<LessonGroup> lessonGroups = new ArrayList<>();
-        List<String> groupsList = provideGroupsList();
-        for (String group : groupsList) {
-            LessonGroup lessonGroup = buildStudentScheduleGroup(group);
-            lessonGroups.add(lessonGroup);
-        }
-        studentsSchedule = lessonGroups;
-        return lessonGroups;
-    }
+//    public LessonGroup buildStudentScheduleGroup(String groupName) {
+//        LocalDate scheduleDate = collectScheduleDate();
+//        LessonGroup lessonGroup = new LessonGroup(scheduleDate.toString(), groupName, null);
+//        var infoList = provideTimeAndInfoForScheduleGroup(groupName);
+//        for (Pair<String, String> info : infoList) {
+//            List<Lesson> lessons = buildScheduleItem(groupName, info.getFirst(), info.getSecond(), scheduleDate);
+//            lessonGroup.addAll(lessons);
+//        }
+//        return lessonGroup;
+//    }
 
-    public List<LessonGroup> makeTeachersSchedule() {
-        Set<String> teachersList = collectAllTeachers();
-        Map<String, LessonGroup> teachersScheduleMap = new LinkedHashMap<>();
-
-        for (String teacherName : teachersList) {
-            teachersScheduleMap.put(teacherName, new LessonGroup(collectScheduleDate().toString(), null, teacherName));
-        }
-
-        for (LessonGroup studentGroup : studentsSchedule) {
-            for (Lesson item : studentGroup.lessons()) {
-                List<String> teachers = item.teacherNames();
-                if (teachers == null) continue;
-
-                for (String teacherName : teachers) {
-                    LessonGroup teacherLessonGroup = teachersScheduleMap.get(teacherName);
-                    if (teacherLessonGroup == null) continue;
-
-                    Lesson teacherItem = new Lesson(
-                            item.time(),
-                            item.subjectName(),
-                            studentGroup.groupName(),
-                            teacherName,
-                            item.roomNumber(),
-                            item.subGroup(),
-                            item.state(),
-                            item.scheduleDate()
-                    );
-                    teacherLessonGroup.add(teacherItem);
-                }
-            }
-        }
-
-        for (LessonGroup teacherLessonGroup : teachersScheduleMap.values()) {
-            teacherLessonGroup.replaceScheduleItems(sortScheduleItems(teacherLessonGroup));
-        }
-
-        return new ArrayList<>(teachersScheduleMap.values());
-    }
-
-    public LessonGroup buildStudentScheduleGroup(String groupName) {
+    public List<LessonInfo> buildLessonsList() {
         LocalDate scheduleDate = collectScheduleDate();
-        LessonGroup lessonGroup = new LessonGroup(scheduleDate.toString(), groupName, null);
-        var infoList = provideTimeAndInfoForScheduleGroup(groupName);
-        for (Pair<String, String> info : infoList) {
-            List<Lesson> lessons = buildScheduleItem(groupName, info.getFirst(), info.getSecond(), scheduleDate);
-            lessonGroup.addAll(lessons);
+        List<LessonInfo> lessons = new ArrayList<>();
+
+        var infoList = provideTimeAndInfoForScheduleGroup();
+
+        for (Info info : infoList) {
+            List<LessonInfo> lessonInfo = buildLessonInfo(info.groupName(), info.time(), info.info());
+            lessons.addAll(lessonInfo);
         }
-        return lessonGroup;
+
+       return lessons;
     }
 
-    public <T> List<Pair<String, String>> getTimeAndInfoForScheduleGroup(String groupName,
-                                                                         Iterable<T> rows,
-                                                                         Function<T, List<String>> rowToCells) {
-        List<Pair<String, String>> timeAndInfoList = new ArrayList<>();
+    public <T> List<Info> getTimeAndInfoList(Iterable<T> rows,
+                                             Function<T, List<String>> rowToCells) {
+        List<Info> infoList = new ArrayList<>();
 
+        List<String> checkedGroups = new ArrayList<>();
+
+//        for (String groupName : groups) {
         // Массив для хранения текущей группы для каждой из трёх колонок
         String[] currentColumns = new String[3];
 
         for (var row : rows) {
-            List<String> cells = rowToCells.apply(row);
+                List<String> cells = rowToCells.apply(row);
+                String groupName = "";
 
-            // Обновляем currentColumns только если ячейка с названием группы не пустая
-            for (int columnIndex = 0; columnIndex < 3; columnIndex++) {
-                int cellIndex = columnIndex * GROUP_COLUMN_WIDTH;
-                if (cellIndex < cells.size()) {
-                    String groupCellText = Objects.toString(cells.get(cellIndex)).trim();
-                    if (!groupCellText.isBlank()) {
-                        currentColumns[columnIndex] = groupCellText.toLowerCase();
+                // Обновляем currentColumns только если ячейка с названием группы не пустая
+                for (int columnIndex = 0; columnIndex < 3; columnIndex++) {
+                    int cellIndex = columnIndex * GROUP_COLUMN_WIDTH;
+                    if (cellIndex < cells.size()) {
+                        String groupCellText = Objects.toString(cells.get(cellIndex)).trim();
+                        if (!groupCellText.isBlank() && !checkedGroups.contains(groupCellText)) {
+                            currentColumns[columnIndex] = groupCellText.toLowerCase();
+                            groupName = groupCellText.toLowerCase();
+                            checkedGroups.add(groupName);
+                        }
+                    }
+                }
+
+                // Теперь собираем данные для нашей группы
+                for (int columnIndex = 0; columnIndex < 3; columnIndex++) {
+                    int cellIndex = columnIndex * GROUP_COLUMN_WIDTH;
+
+                    // Пропускаем если нет ячейки или группа не наша
+                    if (cellIndex >= cells.size() ||
+                            currentColumns[columnIndex] == null ||
+                            !currentColumns[columnIndex].contains(groupName)) {
+                        continue;
+                    }
+
+                    // Проверяем, что есть соседние ячейки
+                    if (cellIndex + GROUP_SUBJECT_COLUMN >= cells.size()) {
+                        continue;
+                    }
+
+                    String time = Objects.toString(cells.get(cellIndex + GROUP_TIME_COLUMN)).trim();
+                    String info = Objects.toString(cells.get(cellIndex + GROUP_SUBJECT_COLUMN)).trim();
+
+                    if (!time.isBlank() && !info.isBlank()) {
+                        if (info.trim().equals("-")) {
+                            info = "нет пары";
+                        }
+                        infoList.add(new Info(groupName, time, info));
                     }
                 }
             }
-
-            // Теперь собираем данные для нашей группы
-            for (int columnIndex = 0; columnIndex < 3; columnIndex++) {
-                int cellIndex = columnIndex * GROUP_COLUMN_WIDTH;
-
-                // Пропускаем если нет ячейки или группа не наша
-                if (cellIndex >= cells.size() ||
-                        currentColumns[columnIndex] == null ||
-                        !currentColumns[columnIndex].contains(groupName)) {
-                    continue;
-                }
-
-                // Проверяем, что есть соседние ячейки
-                if (cellIndex + GROUP_SUBJECT_COLUMN >= cells.size()) {
-                    continue;
-                }
-
-                String time = Objects.toString(cells.get(cellIndex + GROUP_TIME_COLUMN)).trim();
-                String info = Objects.toString(cells.get(cellIndex + GROUP_SUBJECT_COLUMN)).trim();
-
-                if (!time.isBlank() && !info.isBlank()) {
-                    if (info.trim().equals("-")) {
-                        info = "нет пары";
-                    }
-                    timeAndInfoList.add(new Pair<>(time, info));
-                }
-            }
-        }
-        return timeAndInfoList;
+//        }
+        return infoList;
     }
 
     public static @NotNull List<Lesson> sortScheduleItems(LessonGroup teacherLessonGroup) {
@@ -255,12 +223,12 @@ public abstract class ScheduleParser {
 
     /**
      * Создаёт Класс с информацией об учебной паре
-     * @param time Уроки в которые проходит учебная пара (можно указать не только уроки)
+     * @param strTime Уроки в которые проходит учебная пара (можно указать не только уроки)
      * @param info Информация об учебной паре (Название предмета, Преподаватель, кабинет)
      * @return Класс с информацией об учебной паре
      */
-    public List<Lesson> buildScheduleItem(String groupName, String time, String info, LocalDate scheduleDate) {
-        List<Lesson> result = new ArrayList<>();
+    public List<LessonInfo> buildLessonInfo(String groupName, String strTime, String info) {
+        List<LessonInfo> result = new ArrayList<>();
         String[] subjects = info.split("\\s*–\\s*");
         String subjectName;
         String teacherName;
@@ -286,27 +254,30 @@ public abstract class ScheduleParser {
             }
 
             boolean haveStaticName = staticRoomNames.contains(parts[lastPartIndex]);
-            boolean matchesUsualPattern = parts[lastPartIndex].matches(usualRoomPattern.pattern());
+            boolean matchesUsualPattern = parts[lastPartIndex].matches(roomPattern.pattern());
             boolean fullDistant = isWholeScheduleDistant();
 
             String roomNumberCombinedWithTeacher = "";
 
             for (String teacherPart : parts[lastPartIndex].split("\\.")) {
-                if (!teacherPart.matches(usualRoomPattern.pattern())) continue;
+                if (!teacherPart.matches(roomPattern.pattern())) continue;
                 roomNumberCombinedWithTeacher = teacherPart;
             }
 
-            if (haveStaticName || matchesUsualPattern) {
-                roomNumber = parts[lastPartIndex];
-                doubleRoomNumber = roomNumber.contains("/");
-            } else if (!roomNumberCombinedWithTeacher.isEmpty()) {
-                roomNumber = roomNumberCombinedWithTeacher;
-                doubleRoomNumber = roomNumber.contains("/");
-            } else {
-                roomNumber = "Не указан";
-            }
+//            if (haveStaticName || matchesUsualPattern) {
+//                roomNumber = parts[lastPartIndex];
+//                doubleRoomNumber = roomNumber.contains("/");
+//            } else if (!roomNumberCombinedWithTeacher.isEmpty()) {
+//                roomNumber = roomNumberCombinedWithTeacher;
+//                doubleRoomNumber = roomNumber.contains("/");
+//            } else {
+//                roomNumber = "Не указан";
+//            }
+            var roomsInfo = findRooms(subject);
 
-            Lesson staticCaseItem = checkForStaticCases(time, groupName, subject, roomNumber, itemSubGroup, scheduleDate);
+            List<String> rooms = new ArrayList<>();
+
+            LessonInfo staticCaseItem = checkForStaticCases(time, groupName, subject, rooms, itemSubGroup, 0);
             if (staticCaseItem != null) {
                 result.add(staticCaseItem);
                 continue;
@@ -340,125 +311,100 @@ public abstract class ScheduleParser {
                 state = LessonState.DISTANT;
             }
 
-            Lesson lesson = new Lesson(time, subjectName, groupName, teacherName.trim(), roomNumber, itemSubGroup, state, scheduleDate);
+            Lesson lesson = new Lesson(time, subjectName, groupName, teacherName.trim(), roomNumber, itemSubGroup, state);
             result.add(lesson);
         }
         return result;
     }
 
+    //FIXME: Переделать так, чтобы пара с разделением кабинетов типа "25а/61" разделялось на две, даже если название одинаковое
+    public Pair<List<String>, Boolean> findRooms(String info) {
+        List<String> rooms = new ArrayList<>();
+        boolean isInSecondCampus = false;
+
+        Matcher matcher = roomPattern.matcher(info);
+        while (matcher.find()) {
+            String room = matcher.group();
+            try {
+                int roomNum = Integer.parseInt(room.replace("а", "").replace("б", ""));
+                isInSecondCampus = roomNum > 35 && roomNum <= 85;
+            } catch (NumberFormatException _) {}
+            rooms.add(room);
+        }
+
+        return new Pair<>(rooms, isInSecondCampus);
+    }
+
     /**
      * Метод собирает имя преподавателя и вычисляет конечный индекс для формирования названия предмета
-     * @param parts Информация обо всём предмете разделённая на части
-     * @param roomNumber Номер кабинета
-     * @param subGroupIndex Индекс части с указанием подгруппы в информации
-     * @param lastPartIndex Индекс последней части в информации
-     * @param doubleRoomNumber Указан ли номер кабинета, как бы через символ "/"
+     * @param info Полная информация о паре
      * @return Пару с фамилией и инициалами преподавателя в виде строки и конечный индекс для формирования названия предмета в виде числа
      */
-    public Pair<String, Integer> makeTeacherName(String[] parts, String roomNumber, int subGroupIndex, int lastPartIndex, boolean doubleRoomNumber) {
-        StringBuilder tempTeacherName = new StringBuilder();
-        StringBuilder teacherName = new StringBuilder();
-        int subjectNameEndIndex;
+    public static Pair<List<String>, Integer> findTeacherNames(String info) {
+        List<String> result = new ArrayList<>();
+        int start = -1;
 
-        // Имя преподавателя формируется до индекса с указанием подгруппы
-        if (subGroupIndex != -1) {
-            // добавляем только те части, которые существуют: проверяем границы
-            for (int i = 1; i <= 2; i++) {
-                int idx = subGroupIndex + i;
-                if (idx < parts.length) {
-                    tempTeacherName.append(parts[idx]).append(" ");
-                }
+        Matcher matcher = teacherNamePattern.matcher(info);
+        while (matcher.find()) {
+            if (start == -1) {
+                start = matcher.start();
             }
-            subjectNameEndIndex = subGroupIndex;
-
-            // Сдвигает формирование имени преподавателя, если номера комнаты нет
-        } else if ("Не указан".equals(roomNumber)) {
-            int startIndex = lastPartIndex >= 4 ? 3 : 1;
-            int from = Math.max(0, lastPartIndex - startIndex);
-            for (int j = from; j <= lastPartIndex; j++) {
-                tempTeacherName.append(parts[j]).append(" ");
-            }
-            subjectNameEndIndex = from;
-
-            // Когда указан только предмет (маленький массив)
-        } else if (parts.length <= 2) {
-            subjectNameEndIndex = lastPartIndex;
-
-            // Когда указаны предмет и преподаватель, но номер слился с инициалами
-        } else if (parts.length == 3 && roomNumber != null && roomNumber.matches(usualRoomPattern.pattern())) {
-            int startIndex = 1;
-            int from = Math.max(0, lastPartIndex - startIndex);
-            for (int j = from; j <= lastPartIndex; j++) {
-                tempTeacherName.append(parts[j]).append(" ");
-            }
-            subjectNameEndIndex = from;
-
-        } else {
-            int startIndex = doubleRoomNumber ? 4 : 2;
-            int from = Math.max(0, lastPartIndex - startIndex);
-            int to = Math.max(from, lastPartIndex - 1);
-            for (int j = from; j <= to; j++) {
-                tempTeacherName.append(parts[j]).append(" ");
-            }
-            subjectNameEndIndex = from;
+            result.add(matcher.group());
         }
 
-        // Цикл вычищает номер кабинета из инициалов преподавателя
-        String tmp = tempTeacherName.toString().trim();
-        if (!tmp.isEmpty()) {
-            for (String teacherPart : tmp.split("\\.")) {
-                if (teacherPart.matches(usualRoomPattern.pattern())) break;
-                if (!teacherPart.isBlank()) {
-                    teacherName.append(teacherPart).append(".");
-                }
-            }
-        }
-
-        return new Pair<>(teacherName.toString(), subjectNameEndIndex);
+        return new Pair<>(result, start);
     }
 
     /**
      * Проверка на особые случаи, которые не поддаются обычному механизму парсинга
      * @param time Время проведения учебной пары
      * @param info Информация об учебной паре (Название предмета, Преподаватель, кабинет)
-     * @param roomNumber Кабинет проведения учебной пары
+     * @param rooms Кабинеты проведения учебной пары
      * @return Класс с информацией об особом случае учебной пары
      */
-    public Lesson checkForStaticCases(String time, String groupName, String info, String roomNumber, SubGroup subGroup, LocalDate scheduleDate) {
+    public LessonInfo checkForStaticCases(LessonTime time, String groupName, String info, List<String> rooms, SubGroup subGroup, int position) {
         String caseText = info.toLowerCase();
-        String caseTime = time.toLowerCase();
         String[] parts = info.split(" ");
-        StringBuilder teacherName = new StringBuilder();
+        List<String> teacherNames;
 
         if (caseText.contains("нет пары")) {
-            return new Lesson(time, "Нет пары", groupName, "Не указан", roomNumber, subGroup, LessonState.EMPTY, scheduleDate);
+//            return new LessonInfo(time, "Нет пары", groupName, "Не указан", roomNumber, subGroup, LessonState.EMPTY, scheduleDate);
+            return null;
         }
 
         if (caseText.contains("о важном")) {
-            return new Lesson(time, "Разговор о важном", groupName, "Не указан", roomNumber, subGroup, LessonState.OK, scheduleDate);
+//            return new LessonInfo(time, "Разговор о важном", groupName, "Не указан", roomNumber, subGroup, LessonState.OK, scheduleDate);
+            return new LessonInfo(groupName,
+                    Collections.singletonList("Не указан"),
+                    time,
+                    "Разговоры о важном",
+                    rooms,
+                    subGroup,
+                    LessonState.OK,
+                    position);
         }
 
         if (caseText.contains("лыжи снежинка")) {
             String subjectName = parts[0];
-            for (int i = 1; i < parts.length; i++) {
-                if (!parts[i].toLowerCase().contains("лыжи") && !parts[i].toLowerCase().contains("снежинка")) {
-                    teacherName.append(parts[i]).append(" ");
-                }
-            }
-            return new Lesson(time, subjectName, groupName, teacherName.toString().trim(), "Снежинка", subGroup, LessonState.OK, scheduleDate);
+            teacherNames = findTeacherNames(caseText).getFirst();
+            return new LessonInfo(groupName,
+                    teacherNames,
+                    time,
+                    subjectName,
+                    rooms,
+                    subGroup,
+                    LessonState.OK,
+                    position);
         }
 
-        if (caseTime.contains("пп") || caseTime.contains("уп")) {
-            for (String part : parts) {
-                if (part.equals(roomNumber)) continue;
-                teacherName.append(part).append(" ");
-            }
-
-            return new Lesson(time, "Практика", groupName, teacherName.toString().trim(), roomNumber, subGroup, LessonState.OK, scheduleDate);
+        if (time.equals(LessonTime.LEARNING_PRACTICE) || time.equals(LessonTime.PRODUCTION_PRACTICE)) {
+            teacherNames = findTeacherNames(caseText).getFirst();
+            String subjectName = time.equals(LessonTime.LEARNING_PRACTICE) ? "Учебная практика" : "Производственная практика";
+            return new LessonInfo(groupName, teacherNames, time, subjectName, rooms, subGroup, LessonState.OK, position);
         }
 
         if (caseText.contains("(сам.раб.)")) {
-            return new Lesson(time, info, groupName, "Не указан", roomNumber, subGroup, LessonState.OK, scheduleDate);
+            return new LessonInfo(groupName, Collections.emptyList(), time, info, rooms, subGroup, LessonState.OK, position);
         }
 
         return null;

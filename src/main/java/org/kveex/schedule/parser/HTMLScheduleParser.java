@@ -36,8 +36,7 @@ public class HTMLScheduleParser extends ScheduleParser {
         return new ScheduleInfo(
                 collectScheduleEditDate(),
                 collectScheduleDate(),
-                makeGroupsSchedule(),
-                makeTeachersSchedule(),
+                new ArrayList<>(),
                 provideGroupsList(),
                 collectAllTeachers()
         );
@@ -77,13 +76,12 @@ public class HTMLScheduleParser extends ScheduleParser {
     }
 
     @Override
-    public List<Pair<String, String>> provideTimeAndInfoForScheduleGroup(String groupName) {
+    public List<Info> provideTimeAndInfoForScheduleGroup() {
         Elements tables = this.document.select("table");
         if (tables.isEmpty()) return List.of();
         Element table = tables.getFirst();
 
-        return getTimeAndInfoForScheduleGroup(
-                groupName,
+        return getTimeAndInfoList(
                 table.select("tr"),
                 row -> row.select("td").stream()
                         .map(Element::text)
@@ -114,9 +112,9 @@ public class HTMLScheduleParser extends ScheduleParser {
     }
 
     @Override
-    public List<String> provideGroupsList() {
+    public Set<String> provideGroupsList() {
         Elements tables = this.document.select("table");
-        if (tables.isEmpty()) return List.of();
+        if (tables.isEmpty()) return HashSet.newHashSet(0);
         Element table = tables.getFirst();
 
         return collectAllGroups(

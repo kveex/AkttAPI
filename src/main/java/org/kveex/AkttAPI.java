@@ -38,10 +38,10 @@ public class AkttAPI {
                 config.registerPlugin(new SwaggerPlugin());
 
                 config.routes.get("/", GetHandler::showTest);
-                config.routes.get("/api/schedule/groups", GetHandler::getGroupsList);
+//                config.routes.get("/api/schedule/groups", GetHandler::getGroupsList);
                 config.routes.get("/api/schedule/teachers", GetHandler::getTeachersList);
-                config.routes.get("/api/schedule/student", GetHandler::studentSchedule);
-                config.routes.get("/api/schedule/teacher", GetHandler::teacherSchedule);
+//                config.routes.get("/api/schedule/student", GetHandler::studentSchedule);
+//                config.routes.get("/api/schedule/teacher", GetHandler::teacherSchedule);
                 config.routes.get("/api/schedule/date", GetHandler::getScheduleDate);
                 config.routes.post("/api/certificate-upload", PostHandler::handleCertificate);
                 config.routes.post("/api/pdf-upload", PostHandler::handlePdfUpload);

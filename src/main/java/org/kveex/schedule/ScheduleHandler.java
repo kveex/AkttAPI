@@ -63,43 +63,6 @@ public class ScheduleHandler {
         return info.scheduleDate();
     }
 
-    public LessonGroup getStudentScheduleGroup(String groupName) throws IllegalArgumentException {
-        if (info.groupsList().contains(groupName.toLowerCase())) {
-            for (LessonGroup group : info.studentsSchedule()) {
-                if (!group.groupName().equals(groupName.toLowerCase())) continue;
-                return group;
-            }
-        }
-        throw new IllegalArgumentException("Группа [%s] не найдена!".formatted(groupName));
-    }
-
-    public LessonGroup getStudentScheduleGroup(String group, SubGroup subGroup) {
-        return getStudentScheduleGroup(group).getSubGroup(subGroup);
-    }
-
-    public List<LessonGroup> getStudentsSchedule() {
-        return info.studentsSchedule();
-    }
-
-    public List<LessonGroup> getTeachersSchedule() {
-        return info.teachersSchedule();
-    }
-
-    public List<String> getGroupsList() {
-        return info.groupsList();
-    }
-
-    public LessonGroup getTeacherScheduleGroup(String teacherName) throws IllegalArgumentException {
-        if (info.teachersList().contains(teacherName)) {
-            for (LessonGroup group : info.teachersSchedule()) {
-                System.out.println(group);
-                if (!group.teacherName().equals(teacherName)) continue;
-                System.out.println("found: " + group);
-                return group;
-            }
-        }
-        throw new IllegalArgumentException("Преподаватель [%s] не найден!".formatted(teacherName));
-    }
 
     public List<String> getTeachersList() {
         return new ArrayList<>(info.teachersList());

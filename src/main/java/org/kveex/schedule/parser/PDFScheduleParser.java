@@ -8,17 +8,11 @@ import org.kveex.AkttAPI;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class PDFScheduleParser extends ScheduleParser {
+public class PDFScheduleParser extends ScheduleParserOld {
     private static final Pattern GROUP_PATTERN = Pattern.compile("(?<!\\S)\\d{2}-\\d{2}[A-Za-zА-Яа-яЁё\\d]{2,8}(?!\\S)");
     private static final Pattern TIME_PATTERN = Pattern.compile(
             "^(?:\\d,\\d|\\d{1,2}\\.\\d{2}|[Уу][Пп](?:\\.\\d+)?|[Пп][Пп](?:\\.\\d+)?|\\dп)\\b"
@@ -312,9 +306,8 @@ public class PDFScheduleParser extends ScheduleParser {
         return new ScheduleInfo(
                 collectScheduleEditDate(),
                 collectScheduleDate(),
-                makeGroupsSchedule(),
-                makeTeachersSchedule(),
-                provideGroupsList(),
+                new ArrayList<>(),
+                new HashSet<>(),
                 collectAllTeachers()
         );
     }
