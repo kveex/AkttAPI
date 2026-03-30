@@ -6,6 +6,8 @@ import org.jooq.impl.SQLDataType;
 import org.kveex.AkttAPI;
 import org.kveex.schedule.LessonState;
 import org.kveex.schedule.SubGroup;
+import org.kveex.schedule.parser.LessonInfo;
+import org.kveex.schedule.parser.LessonTime;
 import org.kveex.schedule.parser.ScheduleInfo;
 
 import java.sql.Connection;
@@ -13,120 +15,301 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
-public class DatabaseController {
-    private static DatabaseController INSTANCE = null;
-    private DSLContext context;
+public class DatabaseController implements AutoCloseable {
+    private static DatabaseController INSTANCE;
 
-    private static final Field<?> ID = DSL.field(DSL.name("id"), SQLDataType.INTEGER.autoIncrement().notNull());
-    private static final Field<?> SCHEDULE_ID = DSL.field(DSL.name("schedule_id"), SQLDataType.INTEGER.notNull());
-    private static final Field<String> NAME = DSL.field(DSL.name("name"), SQLDataType.NVARCHAR.notNull());
+    private static final Schema PUBLIC_SCHEMA = DSL.schema(DSL.name("public"));
 
-    // region Поля для таблицы с расписаниями
-    private static final Table<?> SCHEDULES = DSL.table(DSL.name("schedules"));
-    private static final Field<LocalDateTime> EDIT_DATE_TIME = DSL.field(DSL.name("edit_date_time"), SQLDataType.LOCALDATETIME.notNull());
-    private static final Field<LocalDate> SCHEDULE_DATE = DSL.field(DSL.name("schedule_date"), SQLDataType.LOCALDATE.notNull());
-    // endregion
+    private static final Table<?> SCHEDULES = DSL.table(DSL.name("public", "schedules"));
+    private static final Table<?> GROUPS = DSL.table(DSL.name("public", "groups"));
+    private static final Table<?> TEACHERS = DSL.table(DSL.name("public", "teachers"));
+    private static final Table<?> LESSONS = DSL.table(DSL.name("public", "lessons"));
 
-    // region Поля с парами для преподавателей
-    // schedule_id сюда
-    private static final Table<?> TEACHER_LESSONS = DSL.table(DSL.name("teacher_lessons"));
-    // endregion
+    private static final Field<Long> SCHEDULES_ID = DSL.field(DSL.name("id"), SQLDataType.BIGINT.nullable(false));
+    private static final Field<LocalDateTime> EDIT_DATE_TIME = DSL.field(DSL.name("edit_date_time"), SQLDataType.LOCALDATETIME.nullable(false));
+    private static final Field<LocalDate> SCHEDULE_DATE = DSL.field(DSL.name("schedule_date"), SQLDataType.LOCALDATE.nullable(false));
 
-    // region Поля с парами для студентов
-    // schedule_id сюда
-    private static final Table<?> GROUP_LESSONS = DSL.table(DSL.name("group_lessons"));
-    // endregion
+    private static final Field<Long> GROUPS_ID = DSL.field(DSL.name("id"), SQLDataType.BIGINT.nullable(false));
+    private static final Field<Long> GROUPS_SCHEDULE_ID = DSL.field(DSL.name("schedule_id"), SQLDataType.BIGINT.nullable(false));
+    private static final Field<String> GROUPS_NAME = DSL.field(DSL.name("name"), SQLDataType.NVARCHAR.nullable(false));
 
-    // region Поля для информации по каждой паре
-    private static final Table<?> LESSONS = DSL.table(DSL.name("lessons"));
-    private static final Field<Integer> TEACHER_ID = DSL.field(DSL.name("teacher_id"), SQLDataType.INTEGER.nullable(true));
-    private static final Field<Integer> GROUP_ID = DSL.field(DSL.name("group_id"), SQLDataType.INTEGER.nullable(true));
-    private static final Field<String> SUBJECT_NAME = DSL.field(DSL.name("subject_name"), SQLDataType.NVARCHAR.notNull());
-    private static final Field<String> ROOM = DSL.field(DSL.name("room"), SQLDataType.NVARCHAR(3).notNull());
-    private static final Field<SubGroup> SUBGROUP = DSL.field(DSL.name("subgroup"), SQLDataType.VARCHAR.asEnumDataType(SubGroup.class).notNull());
-    private static final Field<String> TIME = DSL.field(DSL.name("time"), SQLDataType.NVARCHAR.notNull());
-    private static final Field<LessonState> STATE = DSL.field(DSL.name("state"), SQLDataType.VARCHAR.asEnumDataType(LessonState.class).notNull());
-    // endregion
+    private static final Field<Long> TEACHERS_ID = DSL.field(DSL.name("id"), SQLDataType.BIGINT.nullable(false));
+    private static final Field<Long> TEACHERS_SCHEDULE_ID = DSL.field(DSL.name("schedule_id"), SQLDataType.BIGINT.nullable(false));
+    private static final Field<String> TEACHERS_NAME = DSL.field(DSL.name("name"), SQLDataType.NVARCHAR.nullable(false));
 
-    // region Поля для списка групп
-    private static final Table<?> GROUPS = DSL.table(DSL.name("groups"));
-    // endregion
+    private static final DataType<SubGroup> SUBGROUP_TYPE = SQLDataType.VARCHAR
+            .asEnumDataType(SubGroup.class);
+    private static final DataType<LessonState> LESSON_STATE_TYPE = SQLDataType.VARCHAR
+            .asEnumDataType(LessonState.class);
+    private static final DataType<LessonTime> LESSON_TIME_TYPE = SQLDataType.NVARCHAR
+            .asEnumDataType(LessonTime.class);
 
-    // region Поля для списка групп
-    private static final Table<?> TEACHERS = DSL.table(DSL.name("teachers"));
-    // endregion
+    private static final Field<Long> LESSONS_ID = DSL.field(DSL.name("id"), SQLDataType.BIGINT.nullable(false));
+    private static final Field<Long> LESSONS_SCHEDULE_ID = DSL.field(DSL.name("schedule_id"), SQLDataType.BIGINT.nullable(false));
+    private static final Field<Long> LESSONS_TEACHER_ID = DSL.field(DSL.name("teacher_id"), SQLDataType.BIGINT);
+    private static final Field<Long> LESSONS_GROUP_ID = DSL.field(DSL.name("group_id"), SQLDataType.BIGINT.nullable(false));
+    private static final Field<String> SUBJECT_NAME = DSL.field(DSL.name("subject_name"), SQLDataType.NVARCHAR.nullable(false));
+    private static final Field<String> ROOM = DSL.field(DSL.name("room"), SQLDataType.NVARCHAR.nullable(false));
+    private static final Field<SubGroup> SUBGROUP = DSL.field(DSL.name("subgroup"), SUBGROUP_TYPE.nullable(false));
+    private static final Field<LessonTime> TIME = DSL.field(DSL.name("time"), LESSON_TIME_TYPE.nullable(false));
+    private static final Field<LessonState> STATE = DSL.field(DSL.name("state"), LESSON_STATE_TYPE.nullable(false));
+    private static final Field<String> CUSTOM_TIME = DSL.field(DSL.name("custom_name"), SQLDataType.NVARCHAR.nullable(true));
+
+    private final Connection connection;
+    private final DSLContext context;
 
     private DatabaseController(String url) {
-        try (Connection connection = DriverManager.getConnection(url)){
+        try {
+            connection = DriverManager.getConnection(url);
             context = DSL.using(connection, SQLDialect.POSTGRES);
         } catch (SQLException e) {
-            AkttAPI.LOGGER.error("Что-то пошло не так при инициализации базы данных! Причина: {} | Не рекомендуется пользоваться API в таком состоянии, исправьте проблему!", e.toString());
+            throw new IllegalStateException("Не удалось инициализировать подключение к базе данных", e);
         }
-        tryCreateTables();
+
+        tryCreateSchemaObjects();
     }
 
-    public static void initialize(String url) {
+    public static synchronized void initialize(String url) {
         if (INSTANCE == null) {
             INSTANCE = new DatabaseController(url);
-        } else {
-            AkttAPI.LOGGER.warn("Контроллер для базы данных уже инициализирован!");
+            return;
         }
+
+        AkttAPI.LOGGER.warn("Контроллер для базы данных уже инициализирован!");
     }
 
     public static DatabaseController getInstance() {
+        if (INSTANCE == null) {
+            throw new IllegalStateException("DatabaseController не был инициализирован");
+        }
         return INSTANCE;
     }
 
-    private void tryCreateTables() {
-        var schedulesTable = context.createTableIfNotExists(SCHEDULES)
-                .column(ID).primaryKey(ID)
+    private void tryCreateSchemaObjects() {
+        context.createSchemaIfNotExists(PUBLIC_SCHEMA).execute();
+
+        createTypes();
+        createSchedulesTable();
+        createGroupsTable();
+        createTeachersTable();
+        createLessonsTable();
+        createIndexes();
+    }
+
+    private void createTypes() {
+        context.createTypeIfNotExists(SubGroup.BOTH.getName())
+                .asEnum(SubGroup.FIRST.getLiteral(),
+                        SubGroup.SECOND.getLiteral(),
+                        SubGroup.BOTH.getLiteral())
+                .execute();
+
+        context.createTypeIfNotExists(LessonState.OK.getName())
+                .asEnum(LessonState.OK.getLiteral(),
+                        LessonState.DISTANT.getLiteral(),
+                        LessonState.EMPTY.getLiteral())
+                .execute();
+
+        context.createTypeIfNotExists(LessonTime.FIRST.getName())
+                .asEnum(LessonTime.FIRST.getLiteral(),
+                        LessonTime.FIRST_SHORT.getLiteral(),
+                        LessonTime.SECOND.getLiteral(),
+                        LessonTime.SECOND_FULL.getLiteral(),
+                        LessonTime.SECOND_SHORT.getLiteral(),
+                        LessonTime.THIRD.getLiteral(),
+                        LessonTime.THIRD_SHORT.getLiteral(),
+                        LessonTime.FOURTH.getLiteral(),
+                        LessonTime.FOURTH_SHORT.getLiteral(),
+                        LessonTime.PRODUCTION_PRACTICE.getLiteral(),
+                        LessonTime.LEARNING_PRACTICE.getLiteral(),
+                        LessonTime.CUSTOM.getLiteral())
+                .execute();
+    }
+
+    private void createSchedulesTable() {
+        context.createTableIfNotExists(SCHEDULES)
+                .column(SCHEDULES_ID, SQLDataType.BIGINT.generatedByDefaultAsIdentity().nullable(false))
+                .primaryKey(SCHEDULES_ID)
                 .column(EDIT_DATE_TIME)
-                .column(SCHEDULE_DATE);
-//                .column(GROUPS_LIST)
-//                .column(TEACHERS_LIST)
+                .unique(EDIT_DATE_TIME)
+                .column(SCHEDULE_DATE)
+                .execute();
+    }
 
-        var teacherLessons = context.createTableIfNotExists(TEACHER_LESSONS)
-                .column(ID).primaryKey(ID)
-                .column(SCHEDULE_ID)
-                .column(NAME);
+    private void createGroupsTable() {
+        context.createTableIfNotExists(GROUPS)
+                .column(GROUPS_ID, SQLDataType.BIGINT.generatedByDefaultAsIdentity().nullable(false))
+                .primaryKey(GROUPS_ID)
+                .column(GROUPS_SCHEDULE_ID)
+                .column(GROUPS_NAME)
+                .constraints(
+                        DSL.constraint("uk_groups_schedule_name").unique(GROUPS_SCHEDULE_ID, GROUPS_NAME),
+                        DSL.constraint("fk_groups_schedule_id_schedules_id")
+                                .foreignKey(GROUPS_SCHEDULE_ID)
+                                .references(SCHEDULES, SCHEDULES_ID)
+                                .onDeleteCascade()
+                )
+                .execute();
+    }
 
-        var groupLessons = context.createTableIfNotExists(GROUP_LESSONS)
-                .column(ID).primaryKey(ID)
-                .column(SCHEDULE_ID)
-                .column(NAME);
+    private void createTeachersTable() {
+        context.createTableIfNotExists(TEACHERS)
+                .column(TEACHERS_ID, SQLDataType.BIGINT.generatedByDefaultAsIdentity().nullable(false))
+                .primaryKey(TEACHERS_ID)
+                .column(TEACHERS_SCHEDULE_ID)
+                .column(TEACHERS_NAME)
+                .constraints(
+                        DSL.constraint("uk_teachers_schedule_name").unique(TEACHERS_SCHEDULE_ID, TEACHERS_NAME),
+                        DSL.constraint("fk_teachers_schedule_id_schedules_id")
+                                .foreignKey(TEACHERS_SCHEDULE_ID)
+                                .references(SCHEDULES, SCHEDULES_ID)
+                                .onDeleteCascade()
+                )
+                .execute();
+    }
 
-        var lessons = context.createTableIfNotExists(LESSONS)
-                .column(TEACHER_ID)
-                .column(GROUP_ID)
+    private void createLessonsTable() {
+        context.createTableIfNotExists(LESSONS)
+                .column(LESSONS_ID, SQLDataType.BIGINT.generatedByDefaultAsIdentity().nullable(false))
+                .primaryKey(LESSONS_ID)
+                .column(LESSONS_SCHEDULE_ID)
+                .column(LESSONS_TEACHER_ID)
+                .column(LESSONS_GROUP_ID)
                 .column(SUBJECT_NAME)
                 .column(ROOM)
                 .column(SUBGROUP)
                 .column(TIME)
-                .column(STATE);
-
-        var groups = context.createTableIfNotExists(GROUPS)
-                .column(SCHEDULE_ID)
-                .column(NAME);
-
-        var teachers = context.createTableIfNotExists(TEACHERS)
-                .column(SCHEDULE_ID)
-                .column(NAME);
-
-        schedulesTable.execute();
-        teacherLessons.execute();
-        groupLessons.execute();
-        lessons.execute();
-        groups.execute();
-        teachers.execute();
+                .column(STATE)
+                .column(CUSTOM_TIME)
+                .constraints(
+                        DSL.constraint("fk_lessons_schedule_id_schedules_id")
+                                .foreignKey(LESSONS_SCHEDULE_ID)
+                                .references(SCHEDULES, SCHEDULES_ID)
+                                .onDeleteCascade(),
+                        DSL.constraint("fk_lessons_teacher_id_teachers_id")
+                                .foreignKey(LESSONS_TEACHER_ID)
+                                .references(TEACHERS, TEACHERS_ID)
+                                .onDeleteSetNull(),
+                        DSL.constraint("fk_lessons_group_id_groups_id")
+                                .foreignKey(LESSONS_GROUP_ID)
+                                .references(GROUPS, GROUPS_ID)
+                                .onDeleteCascade()
+                )
+                .execute();
     }
 
-    public static void insertSchedule(ScheduleInfo info) {
-        DSLContext dslContext = INSTANCE.context;
+    private void createIndexes() {
+        context.createIndexIfNotExists("idx_groups_schedule_id")
+                .on(GROUPS, GROUPS_SCHEDULE_ID)
+                .execute();
 
-        dslContext.insertInto(SCHEDULES)
+        context.createIndexIfNotExists("idx_teachers_schedule_id")
+                .on(TEACHERS, TEACHERS_SCHEDULE_ID)
+                .execute();
+
+        context.createIndexIfNotExists("idx_lessons_schedule_id")
+                .on(LESSONS, LESSONS_SCHEDULE_ID)
+                .execute();
+
+        context.createIndexIfNotExists("idx_lessons_group_id")
+                .on(LESSONS, LESSONS_GROUP_ID)
+                .execute();
+
+        context.createIndexIfNotExists("idx_lessons_teacher_id")
+                .on(LESSONS, LESSONS_TEACHER_ID)
+                .execute();
+    }
+
+    public void insertSchedule(ScheduleInfo info) {
+        context.insertInto(SCHEDULES)
                 .set(EDIT_DATE_TIME, info.editDateTime())
                 .set(SCHEDULE_DATE, info.scheduleDate())
                 .execute();
+
+        var response = context.select(SCHEDULES_ID).from(SCHEDULES).where(EDIT_DATE_TIME.eq(info.editDateTime())).fetch();
+        long scheduleId = response.getValue(0, SCHEDULES_ID);
+
+        fillGroupTeacherLists(scheduleId, info);
+        fillLessons(scheduleId, info);
+
+        AkttAPI.LOGGER.info("ID расписания: {}", scheduleId);
+    }
+
+    private void fillGroupTeacherLists(long scheduleId, ScheduleInfo info) {
+        var groups_insert = context.insertInto(GROUPS, GROUPS_SCHEDULE_ID, GROUPS_NAME);
+        var teachers_insert = context.insertInto(TEACHERS, TEACHERS_SCHEDULE_ID, TEACHERS_NAME);
+
+        for (String groupName : info.groupsList()) {
+            groups_insert = groups_insert.values(scheduleId, groupName);
+        }
+
+        for (String teacherName : info.teachersList()) {
+            teachers_insert = teachers_insert.values(scheduleId, teacherName);
+        }
+
+        int g = groups_insert.execute();
+        int t = teachers_insert.execute();
+
+        AkttAPI.LOGGER.info("Количество вставленных [групп|преподавателей]: [{}|{}]", g, t);
+    }
+
+    private void fillLessons(long scheduleId, ScheduleInfo info) {
+        List<Query> queries = new ArrayList<>();
+
+        Map<String, Long> teachers = context.select(TEACHERS_NAME, TEACHERS_ID)
+                .from(TEACHERS)
+                .where(TEACHERS_SCHEDULE_ID.eq(scheduleId))
+                .fetchMap(TEACHERS_NAME, TEACHERS_ID);
+
+        Map<String, Long> groups = context.select(GROUPS_NAME, GROUPS_ID)
+                .from(GROUPS)
+                .where(GROUPS_SCHEDULE_ID.eq(scheduleId))
+                .fetchMap(GROUPS_NAME, GROUPS_ID);
+
+        for (LessonInfo lessonInfo : info.lessons()) {
+            Long groupId = groups.get(lessonInfo.groupName());
+            if (groupId == null) {
+                throw new IllegalStateException("Не найдена группа в БД: \"" + lessonInfo.groupName() + "\"");
+            }
+
+            Long teacherId = null;
+            List<String> teacherNames = lessonInfo.teacherNames() == null ? List.of() : lessonInfo.teacherNames();
+            for (String teacherName : teacherNames) {
+                teacherId = teachers.get(teacherName);
+                if (teacherId != null) {
+                    break;
+                }
+            }
+
+            if (teacherId == null && !teacherNames.isEmpty()) {
+                AkttAPI.LOGGER.warn("Для урока '{}' не найден преподаватель из списка: {}",
+                        lessonInfo.subjectName(), teacherNames);
+            }
+
+            String customTime = lessonInfo.time().equals(LessonTime.CUSTOM) ? lessonInfo.time().getCustomTime() : null;
+
+            Query query = context.insertInto(LESSONS)
+                    .set(LESSONS_SCHEDULE_ID, scheduleId)
+                    .set(LESSONS_TEACHER_ID, teacherId)
+                    .set(LESSONS_GROUP_ID, groupId)
+                    .set(SUBJECT_NAME, lessonInfo.subjectName())
+                    .set(ROOM, lessonInfo.room())
+                    .set(SUBGROUP, lessonInfo.subGroup())
+                    .set(TIME, lessonInfo.time())
+                    .set(STATE, lessonInfo.state())
+                    .set(CUSTOM_TIME, customTime);
+
+            queries.add(query);
+        }
+
+        context.batch(queries).execute();
+    }
+
+    @Override
+    public void close() throws Exception {
+        connection.close();
     }
 }

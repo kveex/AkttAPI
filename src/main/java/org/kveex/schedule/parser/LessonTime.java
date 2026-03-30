@@ -16,13 +16,12 @@ public enum LessonTime implements EnumType {
     THIRD_SHORT("THIRD_SHORT"),
     FOURTH("FOURTH"),
     FOURTH_SHORT("FOURTH_SHORT"),
-    FIFTH("FIFTH"),
-    FIFTH_SHORT("FIFTH_SHORT"),
     PRODUCTION_PRACTICE("PRODUCTION_PRACTICE"),
     LEARNING_PRACTICE("LEARNING_PRACTICE"),
-    CUSTOM("");
+    CUSTOM("CUSTOM");
 
-    private String literal;
+    private final String literal;
+    private String customTime = null;
 
     LessonTime(String literal) {
         this.literal = literal;
@@ -33,24 +32,30 @@ public enum LessonTime implements EnumType {
         return literal;
     }
 
-    private LessonTime setLiteral(String literal) {
-        this.literal = literal;
+    private LessonTime setCustomTime(String time) {
+        customTime = time;
         return this;
     }
 
-    public static LessonTime convertFromString(String time, LocalDate scheduleDate) {
+    public String getCustomTime() {
+        return customTime;
+    }
+
+    public static LessonTime convertFromString(String time, LocalDate scheduleDate, boolean isInSecondCampus) {
         boolean todayIsSaturday = scheduleDate.getDayOfWeek() == DayOfWeek.SATURDAY;
         return switch (time) {
-            case "1,2" -> !todayIsSaturday ? LessonTime.FIRST : LessonTime.FIRST_SHORT;
+            case "1,2" -> !todayIsSaturday ? FIRST : FIRST_SHORT;
             case "3,4" -> {
                 if (todayIsSaturday) {
-                    yield LessonTime.SECOND_SHORT;
+                    yield SECOND_SHORT;
                 }
-                yield !isInSecondCampus ? LessonTime.SECOND : LessonTime.SECOND_FULL;
+                yield !isInSecondCampus ? SECOND : SECOND_FULL;
             }
-            case "5,6" -> !todayIsSaturday ? LessonTime.THIRD : LessonTime.THIRD_SHORT;
-            case "7,8" -> !todayIsSaturday ? LessonTime.FOURTH : LessonTime.FOURTH_SHORT;
-            default -> CUSTOM.setLiteral(time);
+            case "5,6" -> !todayIsSaturday ? THIRD : THIRD_SHORT;
+            case "7,8" -> !todayIsSaturday ? FOURTH : FOURTH_SHORT;
+            case "УП" -> LEARNING_PRACTICE;
+            case "ПП" -> PRODUCTION_PRACTICE;
+            default -> CUSTOM.setCustomTime(time);
         };
     }
 

@@ -4,8 +4,6 @@ import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
 import io.javalin.openapi.*;
 import org.kveex.AkttAPI;
-import org.kveex.schedule.SubGroup;
-import org.kveex.schedule.LessonGroup;
 import org.kveex.schedule.ScheduleHandler;
 
 import java.util.List;

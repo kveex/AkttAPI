@@ -22,6 +22,14 @@ public enum SubGroup implements EnumType {
         };
     }
 
+    public static SubGroup toSubGroup(String subgroup) {
+        return switch (subgroup) {
+            case "1п" -> FIRST;
+            case "2п" -> SECOND;
+            default -> BOTH;
+        };
+    }
+
     @Override
     public @NotNull String getLiteral() {
         return literal; // значение ENUM в БД

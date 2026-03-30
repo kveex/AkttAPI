@@ -30,6 +30,10 @@ public class ScheduleHandler {
         return INSTANCE;
     }
 
+    public ScheduleInfo getInfo() {
+        return info;
+    }
+
     public synchronized void setInfo(ScheduleInfo newInfo) {
         boolean isTomorrow = newInfo.scheduleDate().isAfter(info.scheduleDate());
         boolean isYesterday = newInfo.scheduleDate().isBefore(info.scheduleDate());

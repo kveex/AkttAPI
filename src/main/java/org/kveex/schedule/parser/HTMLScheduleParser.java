@@ -36,7 +36,7 @@ public class HTMLScheduleParser extends ScheduleParser {
         return new ScheduleInfo(
                 collectScheduleEditDate(),
                 collectScheduleDate(),
-                new ArrayList<>(),
+                buildLessonsList(),
                 provideGroupsList(),
                 collectAllTeachers()
         );

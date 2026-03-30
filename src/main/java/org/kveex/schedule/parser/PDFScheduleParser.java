@@ -8,11 +8,19 @@ import org.kveex.AkttAPI;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class PDFScheduleParser extends ScheduleParserOld {
+public class PDFScheduleParser extends ScheduleParser {
     private static final Pattern GROUP_PATTERN = Pattern.compile("(?<!\\S)\\d{2}-\\d{2}[A-Za-zА-Яа-яЁё\\d]{2,8}(?!\\S)");
     private static final Pattern TIME_PATTERN = Pattern.compile(
             "^(?:\\d,\\d|\\d{1,2}\\.\\d{2}|[Уу][Пп](?:\\.\\d+)?|[Пп][Пп](?:\\.\\d+)?|\\dп)\\b"
@@ -23,22 +31,40 @@ public class PDFScheduleParser extends ScheduleParserOld {
 
     private PDDocument document;
     private List<String> cachedLines;
-    private Map<String, List<Pair<String, String>>> cachedSchedule;
+    private List<Info> cachedInfoList;
+    private Set<String> cachedGroups;
 
     public PDFScheduleParser(byte[] bytes) {
         updateDocument(bytes);
+    }
+
+    @Override
+    public ScheduleInfo parse() {
+        List<LessonInfo> lessons = buildLessonsList();
+        return new ScheduleInfo(
+                collectScheduleEditDate(),
+                collectScheduleDate(),
+                lessons,
+                provideGroupsList(),
+                collectAllTeachers()
+        );
     }
 
     private void updateDocument(byte[] bytes) {
         try {
             document = Loader.loadPDF(bytes);
         } catch (IOException e) {
-            AkttAPI.LOGGER.error("!!! Ошибка при загрузке PDF: {} !!!", e.toString());
+            AkttAPI.LOGGER.error("Ошибка при загрузке PDF: {}", e.toString());
+            document = null;
         }
     }
 
     private List<String> getLines() {
         if (cachedLines != null) {
+            return cachedLines;
+        }
+        if (document == null) {
+            cachedLines = List.of();
             return cachedLines;
         }
 
@@ -48,30 +74,20 @@ public class PDFScheduleParser extends ScheduleParserOld {
         stripper.setWordSeparator(" ");
 
         String text;
-
         try {
             text = stripper.getText(document);
         } catch (IOException e) {
-            AkttAPI.LOGGER.error("!!! Ошибка при получении текста из PDF: {} !!!", e.toString());
-            return List.of();
+            AkttAPI.LOGGER.error("Ошибка при получении текста из PDF: {}", e.toString());
+            cachedLines = List.of();
+            return cachedLines;
         }
 
         cachedLines = Arrays.asList(text.split("\n"));
         return cachedLines;
     }
 
-    private static String locateDateString(List<String> lines) {
-        for (String line : lines) {
-            String normalizedLine = Objects.toString(line, "").toLowerCase(Locale.ROOT).trim();
-            if (normalizedLine.contains("расписание на")) {
-                return line;
-            }
-        }
-        return "";
-    }
-
     private void ensureScheduleParsed() {
-        if (cachedSchedule != null) {
+        if (cachedInfoList != null && cachedGroups != null) {
             return;
         }
 
@@ -113,20 +129,24 @@ public class PDFScheduleParser extends ScheduleParserOld {
             handleSegment(rawLine, continuationColumn, currentGroups, lastEntries, drafts);
         }
 
-        LinkedHashMap<String, List<Pair<String, String>>> result = new LinkedHashMap<>();
+        LinkedHashSet<String> groups = new LinkedHashSet<>();
+        List<Info> infoList = new ArrayList<>();
+
         for (Map.Entry<String, List<ScheduleEntryDraft>> entry : drafts.entrySet()) {
-            List<Pair<String, String>> pairs = new ArrayList<>();
+            String groupName = entry.getKey();
+            groups.add(groupName);
+
             for (ScheduleEntryDraft draft : entry.getValue()) {
                 String info = normalizeInfo(draft.info.toString());
                 if (draft.time.isBlank() || info.isBlank()) {
                     continue;
                 }
-                pairs.add(new Pair<>(draft.time, info));
+                infoList.add(new Info(groupName, draft.time, info));
             }
-            result.put(entry.getKey(), List.copyOf(pairs));
         }
 
-        cachedSchedule = result;
+        cachedGroups = groups;
+        cachedInfoList = infoList;
     }
 
     private void handleSegment(String rawSegment,
@@ -134,6 +154,10 @@ public class PDFScheduleParser extends ScheduleParserOld {
                                String[] currentGroups,
                                ScheduleEntryDraft[] lastEntries,
                                LinkedHashMap<String, List<ScheduleEntryDraft>> drafts) {
+        if (columnIndex < 0 || columnIndex >= 3) {
+            return;
+        }
+
         ParsedSegment segment = parseSegment(rawSegment);
         if (segment.isEmpty()) {
             return;
@@ -204,7 +228,6 @@ public class PDFScheduleParser extends ScheduleParserOld {
         if (parts.length <= 1 || parts.length > 3) {
             return List.of(normalize(rawLine));
         }
-
         return Arrays.asList(parts);
     }
 
@@ -278,6 +301,16 @@ public class PDFScheduleParser extends ScheduleParserOld {
         return lower.startsWith("группа");
     }
 
+    private static String locateDateString(List<String> lines) {
+        for (String line : lines) {
+            String normalizedLine = Objects.toString(line, "").toLowerCase(Locale.ROOT).trim();
+            if (normalizedLine.contains("расписание на")) {
+                return normalizedLine;
+            }
+        }
+        return "";
+    }
+
     private String normalize(String text) {
         return Objects.toString(text, "")
                 .replace('\u00A0', ' ')
@@ -301,27 +334,15 @@ public class PDFScheduleParser extends ScheduleParserOld {
     }
 
     @Override
-    public ScheduleInfo parse() {
-        ensureScheduleParsed();
-        return new ScheduleInfo(
-                collectScheduleEditDate(),
-                collectScheduleDate(),
-                new ArrayList<>(),
-                new HashSet<>(),
-                collectAllTeachers()
-        );
-    }
-
-    @Override
     public boolean isWholeScheduleDistant() {
-        String dateLine = locateDateString(getLines()).toLowerCase(Locale.ROOT);
+        String dateLine = locateDateString(getLines());
         return dateLine.contains("дист");
     }
 
     @Override
-    public List<String> provideGroupsList() {
+    public Set<String> provideGroupsList() {
         ensureScheduleParsed();
-        return new ArrayList<>(cachedSchedule.keySet());
+        return new LinkedHashSet<>(cachedGroups);
     }
 
     @Override
@@ -351,27 +372,27 @@ public class PDFScheduleParser extends ScheduleParserOld {
     }
 
     @Override
-    public List<Pair<String, String>> provideTimeAndInfoForScheduleGroup(String groupName) {
+    public List<Info> provideTimeAndInfoForScheduleGroup() {
         ensureScheduleParsed();
-        return cachedSchedule.getOrDefault(groupName.toLowerCase(Locale.ROOT), List.of());
+        return new ArrayList<>(cachedInfoList);
     }
 
     private record ScheduleEntryDraft(String time, StringBuilder info) {
-            private ScheduleEntryDraft(String time, String info) {
-                this(time, new StringBuilder(info));
-            }
-
-            private void append(String extraInfo) {
-                String normalizedExtra = Objects.toString(extraInfo, "").trim();
-                if (normalizedExtra.isBlank()) {
-                    return;
-                }
-                if (!info.isEmpty()) {
-                    info.append(' ');
-                }
-                info.append(normalizedExtra);
-            }
+        private ScheduleEntryDraft(String time, String info) {
+            this(time, new StringBuilder(info));
         }
+
+        private void append(String extraInfo) {
+            String normalizedExtra = Objects.toString(extraInfo, "").trim();
+            if (normalizedExtra.isBlank()) {
+                return;
+            }
+            if (!info.isEmpty()) {
+                info.append(' ');
+            }
+            info.append(normalizedExtra);
+        }
+    }
 
     private record ParsedSegment(String groupName, String time, String info) {
         private static ParsedSegment empty() {
