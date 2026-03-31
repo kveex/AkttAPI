@@ -6,11 +6,12 @@ import io.javalin.openapi.*;
 import org.kveex.AkttAPI;
 import org.kveex.certificate.CertificateHandler;
 import org.kveex.certificate.CertificateItem;
-import org.kveex.schedule.ScheduleHandler;
-import org.kveex.schedule.parser.PDFScheduleParser;
+import org.kveex.schedule.ScheduleSaver;
 import org.kveex.schedule.parser.ScheduleInfo;
 
 import java.io.IOException;
+import java.sql.SQLException;
+import java.util.Map;
 
 public class PostHandler {
     @OpenApi(
@@ -77,7 +78,6 @@ public class PostHandler {
             }
     )
     public static void handlePdfUpload(Context context) {
-        ScheduleHandler scheduleHandler = ScheduleHandler.getInstance();
         byte[] bytes;
 
         try {
@@ -99,9 +99,11 @@ public class PostHandler {
             context.status(HttpStatus.BAD_REQUEST).result("PDF файл пустой");
             return;
         }
-
-        ScheduleInfo info = new PDFScheduleParser(bytes).parse();
-        scheduleHandler.setInfo(info);
-        context.status(HttpStatus.OK).json(info);
+        try {
+            ScheduleSaver.trySavePDF(bytes);
+        } catch (SQLException e) {
+            context.json(Map.of("error", e.getMessage()));
+        }
+        context.status(HttpStatus.OK);
     }
 }

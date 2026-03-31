@@ -1,6 +1,7 @@
 package org.kveex.database;
 
 import org.jooq.*;
+import org.jooq.exception.DataAccessException;
 import org.jooq.impl.DSL;
 import org.jooq.impl.SQLDataType;
 import org.kveex.AkttAPI;
@@ -223,13 +224,16 @@ public class DatabaseController implements AutoCloseable {
                 .execute();
     }
 
-    public void insertSchedule(ScheduleInfo info) {
+    public void insertSchedule(ScheduleInfo info) throws DataAccessException {
         context.insertInto(SCHEDULES)
                 .set(EDIT_DATE_TIME, info.editDateTime())
                 .set(SCHEDULE_DATE, info.scheduleDate())
                 .execute();
 
-        var response = context.select(SCHEDULES_ID).from(SCHEDULES).where(EDIT_DATE_TIME.eq(info.editDateTime())).fetch();
+        var response = context.select(SCHEDULES_ID)
+                .from(SCHEDULES)
+                .where(EDIT_DATE_TIME.eq(info.editDateTime()))
+                .fetch();
         long scheduleId = response.getValue(0, SCHEDULES_ID);
 
         fillGroupTeacherLists(scheduleId, info);
