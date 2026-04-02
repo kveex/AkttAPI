@@ -16,9 +16,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class DatabaseController implements AutoCloseable {
     private static DatabaseController INSTANCE;
@@ -310,6 +308,125 @@ public class DatabaseController implements AutoCloseable {
         }
 
         context.batch(queries).execute();
+    }
+
+
+    public List<LessonInfo> getLessonsForGroup(LocalDate scheduleDate, String groupName, SubGroup subGroup) {
+        Optional<Long> scheduleIdOpt = getScheduleID(scheduleDate);
+
+        if (scheduleIdOpt.isEmpty()) return Collections.emptyList();
+        long scheduleId = scheduleIdOpt.get();
+
+        Optional<Long> groupIdOpt = context.select(GROUPS_ID)
+                .from(GROUPS)
+                .where(GROUPS_SCHEDULE_ID.eq(scheduleId))
+                .and(GROUPS_NAME.eq(groupName))
+                .fetchOptional(GROUPS_ID);
+
+        if (groupIdOpt.isEmpty()) return Collections.emptyList();
+        long groupId = groupIdOpt.get();
+
+        Map<Long, String> teachersById = context.select(TEACHERS_ID, TEACHERS_NAME)
+                .from(TEACHERS)
+                .where(TEACHERS_SCHEDULE_ID.eq(scheduleId))
+                .fetchMap(TEACHERS_ID, TEACHERS_NAME);
+
+        Condition subgroupCondition = (subGroup == SubGroup.BOTH)
+                ? DSL.trueCondition()
+                : SUBGROUP.in(subGroup, SubGroup.BOTH);
+
+        return context.select(
+                        LESSONS_TEACHER_ID,
+                        TIME,
+                        SUBJECT_NAME,
+                        ROOM,
+                        SUBGROUP,
+                        STATE
+                )
+                .from(LESSONS)
+                .where(LESSONS_SCHEDULE_ID.eq(scheduleId))
+                .and(LESSONS_GROUP_ID.eq(groupId))
+                .and(subgroupCondition)
+                .fetch(r -> {
+                    Long teacherId = r.get(LESSONS_TEACHER_ID);
+                    String teacherName = teacherId == null ? null : teachersById.get(teacherId);
+
+                    return new LessonInfo(
+                            groupName,
+                            teacherName == null ? List.of() : List.of(teacherName),
+                            r.get(TIME),
+                            r.get(SUBJECT_NAME),
+                            r.get(ROOM),
+                            r.get(SUBGROUP),
+                            r.get(STATE)
+                    );
+                });
+    }
+
+    public List<LessonInfo> getLessonsForTeacher(LocalDate scheduleDate, String teacherName) {
+        Optional<Long> scheduleIdOpt = getScheduleID(scheduleDate);
+
+        if (scheduleIdOpt.isEmpty()) return Collections.emptyList();
+        long scheduleId = scheduleIdOpt.get();
+
+        Optional<Long> teacherIdOpt = context.select(TEACHERS_ID)
+                .from(TEACHERS)
+                .where(TEACHERS_SCHEDULE_ID.eq(scheduleId))
+                .and(TEACHERS_NAME.eq(teacherName))
+                .fetchOptional(TEACHERS_ID);
+
+        if (teacherIdOpt.isEmpty()) return Collections.emptyList();
+        long teacherId = teacherIdOpt.get();
+
+        Map<Long, String> groupsById = context.select(GROUPS_ID, GROUPS_NAME)
+                .from(GROUPS)
+                .where(GROUPS_SCHEDULE_ID.eq(scheduleId))
+                .fetchMap(GROUPS_ID, GROUPS_NAME);
+
+        return context.select(
+                        LESSONS_GROUP_ID,
+                        TIME,
+                        SUBJECT_NAME,
+                        ROOM,
+                        SUBGROUP,
+                        STATE
+                )
+                .from(LESSONS)
+                .where(LESSONS_SCHEDULE_ID.eq(scheduleId))
+                .and(LESSONS_TEACHER_ID.eq(teacherId))
+                .fetch(r -> {
+                    Long groupId = r.get(LESSONS_GROUP_ID);
+                    String groupName = groupId == null ? null : groupsById.get(groupId);
+
+                    return new LessonInfo(
+                            groupName,
+                            teacherName == null ? List.of() : List.of(teacherName),
+                            r.get(TIME),
+                            r.get(SUBJECT_NAME),
+                            r.get(ROOM),
+                            r.get(SUBGROUP),
+                            r.get(STATE)
+                    );
+                });
+    }
+
+    private Optional<Long> getScheduleID(LocalDate scheduleDate) {
+        return context.select(SCHEDULES_ID)
+                .from(SCHEDULES)
+                .where(SCHEDULE_DATE.eq(scheduleDate))
+                .orderBy(EDIT_DATE_TIME.desc())
+                .limit(1)
+                .fetchOptional(SCHEDULES_ID);
+    }
+
+    public List<String> getGroupsList(LocalDate scheduleDate) {
+        var scheduleId = getScheduleID(scheduleDate);
+        return scheduleId.map(aLong -> List.of(context.select(GROUPS_NAME).from(GROUPS).where(GROUPS_SCHEDULE_ID.eq(aLong)).fetchArray(GROUPS_NAME))).orElse(Collections.emptyList());
+    }
+
+    public List<String> getTeachersList(LocalDate scheduleDate) {
+        var scheduleId = getScheduleID(scheduleDate);
+        return scheduleId.map(aLong -> List.of(context.select(TEACHERS_NAME).from(TEACHERS).where(TEACHERS_SCHEDULE_ID.eq(aLong)).fetchArray(TEACHERS_NAME))).orElse(Collections.emptyList());
     }
 
     @Override

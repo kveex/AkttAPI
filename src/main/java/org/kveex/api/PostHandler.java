@@ -64,9 +64,20 @@ public class PostHandler {
             operationId = "handlePdfUpload",
             path = "/api/pdf-upload",
             requestBody = @OpenApiRequestBody(
-                    content = @OpenApiContent(
-                            type = "application/pdf"
-                    )
+                    required = true,
+                    description = "PDF-файл",
+                    content = {
+                            @OpenApiContent(
+                                    mimeType = "multipart/form-data",
+                                    properties = {
+                                            @OpenApiContentProperty(
+                                                    name = "file",
+                                                    type = "string",
+                                                    format = "binary"
+                                            )
+                                    }
+                            )
+                    }
             ),
             methods = HttpMethod.POST,
             tags = "Schedule",

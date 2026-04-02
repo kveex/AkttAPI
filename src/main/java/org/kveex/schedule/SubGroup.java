@@ -14,18 +14,10 @@ public enum SubGroup implements EnumType {
         this.literal = literal;
     }
 
-    public static SubGroup toSubGroup(int subgroup) {
-        return switch (subgroup) {
-            case 1 -> FIRST;
-            case 2 -> SECOND;
-            default -> BOTH;
-        };
-    }
-
     public static SubGroup toSubGroup(String subgroup) {
         return switch (subgroup) {
-            case "1п" -> FIRST;
-            case "2п" -> SECOND;
+            case "1", "1п" -> FIRST;
+            case "2", "2п" -> SECOND;
             default -> BOTH;
         };
     }

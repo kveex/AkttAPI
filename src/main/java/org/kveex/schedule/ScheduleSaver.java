@@ -57,6 +57,8 @@ public class ScheduleSaver {
                 throw new SQLException("Ошибка БД (SQLState=%s): %s".formatted(state, e.getMessage()));
             }
         }
+
+        AkttAPI.notifyAboutUpdate();
         AkttAPI.LOGGER.info("Новое расписание сохранено! Дата и время изменения: {}", info.editDateTime());
     }
 }
