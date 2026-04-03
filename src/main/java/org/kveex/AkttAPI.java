@@ -6,7 +6,6 @@ import io.javalin.openapi.plugin.OpenApiPlugin;
 import io.javalin.openapi.plugin.OpenApiPluginConfiguration;
 import io.javalin.openapi.plugin.swagger.SwaggerPlugin;
 import io.javalin.util.JavalinBindException;
-import io.javalin.websocket.WsContext;
 import org.kveex.api.ArgsParser;
 import org.kveex.api.GetHandler;
 import org.kveex.api.PostHandler;
@@ -15,15 +14,12 @@ import org.kveex.schedule.ScheduleSaver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
 public class AkttAPI {
     public static final String ID = "AKTT_API";
     public static final Logger LOGGER = LoggerFactory.getLogger(ID);
     private static int port;
     private static int repeatDelay;
-    private static final Set<WsContext> sessions = ConcurrentHashMap.newKeySet();
+
 
     static void main(String[] args) {
         setArgs(args);
@@ -52,17 +48,7 @@ public class AkttAPI {
                 config.routes.get("/api/schedule/teachers/{date}", GetHandler::teachersList);
                 config.routes.post("/api/certificate-upload", PostHandler::handleCertificate);
                 config.routes.post("/api/pdf-upload", PostHandler::handlePdfUpload);
-
-                config.routes.ws("/api/schedule-updates", ws -> {
-                    ws.onConnect(ctx -> {
-                        sessions.add(ctx);
-                        LOGGER.info("Client connected");
-                    });
-                    ws.onClose(ctx -> {
-                        sessions.remove(ctx);
-                        LOGGER.info("Client disconnected");
-                    });
-                });
+                config.routes.post("/api/webhook", PostHandler::addWebHook);
             }
         );
 
@@ -75,10 +61,6 @@ public class AkttAPI {
 
         LOGGER.info("API запущено на порту: {}", port);
         LOGGER.info("Swagger UI: <server-ip>:{}/swagger", port);
-    }
-
-    public static void notifyAboutUpdate() {
-        sessions.forEach(session -> session.send("updated"));
     }
 
     private static void configureOpenApi(OpenApiPluginConfiguration openapi) {

@@ -2,6 +2,7 @@ package org.kveex.schedule;
 
 import org.jooq.exception.DataAccessException;
 import org.kveex.AkttAPI;
+import org.kveex.api.WebhookHandler;
 import org.kveex.database.DatabaseController;
 import org.kveex.schedule.parser.HTMLScheduleParser;
 import org.kveex.schedule.parser.PDFScheduleParser;
@@ -58,7 +59,7 @@ public class ScheduleSaver {
             }
         }
 
-        AkttAPI.notifyAboutUpdate();
+        WebhookHandler.notifyAboutUpdate();
         AkttAPI.LOGGER.info("Новое расписание сохранено! Дата и время изменения: {}", info.editDateTime());
     }
 }

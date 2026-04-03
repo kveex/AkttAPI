@@ -10,6 +10,7 @@ import org.kveex.schedule.ScheduleSaver;
 import org.kveex.schedule.parser.ScheduleInfo;
 
 import java.io.IOException;
+import java.net.URI;
 import java.sql.SQLException;
 import java.util.Map;
 
@@ -116,5 +117,11 @@ public class PostHandler {
             context.json(Map.of("error", e.getMessage()));
         }
         context.status(HttpStatus.OK);
+    }
+
+    public static void addWebHook(Context context) {
+        URI uri = URI.create(context.body());
+        WebhookHandler.webhooks.add(uri);
+        AkttAPI.LOGGER.info("Добавлен новый вебхук адрес [{}]", uri);
     }
 }
