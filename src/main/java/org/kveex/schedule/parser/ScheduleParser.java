@@ -91,14 +91,14 @@ public abstract class ScheduleParser {
 
         for (String part : dateParts) {
             if (part == null) continue;
-            String text = part.toLowerCase();
+            String text = part.toLowerCase().trim();
             String monthText = text;
 
             try {
                 monthText = text.substring(0, 3);
             } catch (StringIndexOutOfBoundsException ignored) {}
 
-            if (text.matches("\\d{2}")) {
+            if (text.matches("\\d{1,2}")) {
                 day = Integer.parseInt(text);
             } else if (text.matches("\\d{4}г?")) {
                 year = Integer.parseInt(text.replace("г", ""));
@@ -108,6 +108,9 @@ public abstract class ScheduleParser {
         }
 
         if (year < 2000 || month < 1 || day < 1) {
+            System.out.println(year);
+            System.out.println(month);
+            System.out.println(day);
             throw new IllegalStateException("Не удалось получить дату расписания, вероятно указание не было найдено в документе");
         }
 
@@ -250,7 +253,8 @@ public abstract class ScheduleParser {
                         subjectName,
                         roomNumber,
                         itemSubGroup,
-                        state
+                        state,
+                        time.getCustomTime()
                 );
 
                 result.add(lesson);
@@ -334,7 +338,8 @@ public abstract class ScheduleParser {
                     "Разговоры о важном",
                     room,
                     subGroup,
-                    LessonState.OK
+                    LessonState.OK,
+                    time.getCustomTime()
             );
         }
 
@@ -348,7 +353,8 @@ public abstract class ScheduleParser {
                     subjectName,
                     room,
                     subGroup,
-                    LessonState.OK
+                    LessonState.OK,
+                    time.getCustomTime()
             );
         }
 
@@ -362,7 +368,8 @@ public abstract class ScheduleParser {
                     subjectName,
                     room,
                     subGroup,
-                    LessonState.OK
+                    LessonState.OK,
+                    time.getCustomTime()
             );
         }
 
@@ -374,7 +381,8 @@ public abstract class ScheduleParser {
                     info,
                     room,
                     subGroup,
-                    LessonState.OK
+                    LessonState.OK,
+                    time.getCustomTime()
             );
         }
 

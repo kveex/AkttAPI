@@ -341,7 +341,8 @@ public class DatabaseController implements AutoCloseable {
                         SUBJECT_NAME,
                         ROOM,
                         SUBGROUP,
-                        STATE
+                        STATE,
+                        CUSTOM_TIME
                 )
                 .from(LESSONS)
                 .where(LESSONS_SCHEDULE_ID.eq(scheduleId))
@@ -358,7 +359,8 @@ public class DatabaseController implements AutoCloseable {
                             r.get(SUBJECT_NAME),
                             r.get(ROOM),
                             r.get(SUBGROUP),
-                            r.get(STATE)
+                            r.get(STATE),
+                            r.get(CUSTOM_TIME)
                     );
                 });
     }
@@ -389,7 +391,8 @@ public class DatabaseController implements AutoCloseable {
                         SUBJECT_NAME,
                         ROOM,
                         SUBGROUP,
-                        STATE
+                        STATE,
+                        CUSTOM_TIME
                 )
                 .from(LESSONS)
                 .where(LESSONS_SCHEDULE_ID.eq(scheduleId))
@@ -405,7 +408,8 @@ public class DatabaseController implements AutoCloseable {
                             r.get(SUBJECT_NAME),
                             r.get(ROOM),
                             r.get(SUBGROUP),
-                            r.get(STATE)
+                            r.get(STATE),
+                            r.get(CUSTOM_TIME)
                     );
                 });
     }

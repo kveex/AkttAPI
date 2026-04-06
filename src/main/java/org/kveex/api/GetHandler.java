@@ -230,6 +230,17 @@ public class GetHandler {
         context.status(HttpStatus.OK);
     }
 
+    @OpenApi(
+            summary = "Выдаёт список преподавателей для которых есть расписание",
+            operationId = "teachersList",
+            path = "/api/schedule/forceNotify",
+            methods = HttpMethod.GET,
+            tags = {"Schedule"}
+    )
+    public static void forceNotify(Context ignored) {
+        WebhookHandler.notifyAboutUpdate("2026-04-06");
+    }
+
     private static SubGroup getSubGroup(Context context) {
         String strSubGroup = context.queryParam("subgroup");
 

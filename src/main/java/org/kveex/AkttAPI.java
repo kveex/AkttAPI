@@ -46,6 +46,7 @@ public class AkttAPI {
                 config.routes.get("/api/schedule/teacher/{date}/{teacherName}", GetHandler::teacherSchedule);
                 config.routes.get("/api/schedule/groups/{date}", GetHandler::groupsList);
                 config.routes.get("/api/schedule/teachers/{date}", GetHandler::teachersList);
+                config.routes.get("/api/schedule/forceNotify", GetHandler::forceNotify);
                 config.routes.post("/api/certificate-upload", PostHandler::handleCertificate);
                 config.routes.post("/api/pdf-upload", PostHandler::handlePdfUpload);
                 config.routes.post("/api/webhook", PostHandler::addWebHook);

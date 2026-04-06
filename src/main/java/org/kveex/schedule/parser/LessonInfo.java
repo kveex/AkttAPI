@@ -11,5 +11,6 @@ public record LessonInfo(String groupName,
                          String subjectName,
                          String room,
                          SubGroup subGroup,
-                         LessonState state) {
+                         LessonState state,
+                         String customTime) {
 }
