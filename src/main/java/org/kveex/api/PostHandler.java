@@ -121,7 +121,8 @@ public class PostHandler {
 
     public static void addWebHook(Context context) {
         URI uri = URI.create(context.body());
-        WebhookHandler.webhooks.add(uri);
-        AkttAPI.LOGGER.info("Добавлен новый вебхук адрес [{}]", uri);
+        boolean added = WebhookHandler.webhooks.add(uri);
+        String message = added ? "Добавлен новый вебхук адрес [%s]".formatted(uri) : "Данный вебхук [%s] уже добавлен".formatted(uri);
+        AkttAPI.LOGGER.info(message, uri);
     }
 }

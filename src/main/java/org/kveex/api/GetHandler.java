@@ -2,7 +2,11 @@ package org.kveex.api;
 
 import io.javalin.http.Context;
 import io.javalin.http.HttpStatus;
-import io.javalin.openapi.*;
+import io.javalin.openapi.HttpMethod;
+import io.javalin.openapi.OpenApi;
+import io.javalin.openapi.OpenApiContent;
+import io.javalin.openapi.OpenApiParam;
+import io.javalin.openapi.OpenApiResponse;
 import org.kveex.AkttAPI;
 import org.kveex.database.DatabaseController;
 import org.kveex.schedule.SubGroup;
@@ -15,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-
 public class GetHandler {
     public static void showTest(Context context) {
         AkttAPI.LOGGER.info("Сделан запрос на главную страницу");
@@ -25,13 +28,8 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт список пар для указанной группы, с опциональным указанием подгруппы",
             operationId = "studentSchedule",
-            path = "/api/schedule/student/{date}/{groupName}",
+            path = "/api/schedule/student/{groupName}",
             pathParams = {
-                    @OpenApiParam(
-                            name = "date",
-                            description = "Дата расписания в формате yyyy-mm-dd",
-                            required = true
-                    ),
                     @OpenApiParam(
                             name = "groupName",
                             description = "Название учебной группы, регистро-независимое",
@@ -40,6 +38,10 @@ public class GetHandler {
                     )
             },
             queryParams = {
+                    @OpenApiParam(
+                            name = "date",
+                            description = "Дата расписания в формате yyyy-mm-dd"
+                    ),
                     @OpenApiParam(
                             name = "subgroup",
                             description = "Подгруппа, указанной учебной группы, в виде числа (1, 2, любое)",
@@ -51,7 +53,7 @@ public class GetHandler {
             responses = {
                     @OpenApiResponse(
                             status = "200",
-                            content = @OpenApiContent(from = ArrayList.class)
+                            content = @OpenApiContent(from = Map.class)
                     ),
                     @OpenApiResponse(
                             status = "400",
@@ -80,20 +82,15 @@ public class GetHandler {
             return;
         }
 
-        context.json(lessonInfoList);
+        context.json(Map.of("scheduleDate", scheduleDate.get().toString(), "lessons", lessonInfoList));
         context.status(HttpStatus.OK);
     }
 
     @OpenApi(
             summary = "Выдаёт список пар для указанного преподавателя, с опциональным указанием подгруппы",
             operationId = "teacherSchedule",
-            path = "/api/schedule/teacher/{date}/{teacherName}",
+            path = "/api/schedule/teacher/{teacherName}",
             pathParams = {
-                    @OpenApiParam(
-                            name = "date",
-                            description = "Дата расписания в формате yyyy-mm-dd",
-                            required = true
-                    ),
                     @OpenApiParam(
                             name = "teacherName",
                             description = "Имя и инициалы преподавателя, регистро-зависимое",
@@ -101,12 +98,18 @@ public class GetHandler {
                             required = true
                     )
             },
+            queryParams = {
+                    @OpenApiParam(
+                            name = "date",
+                            description = "Дата расписания в формате yyyy-mm-dd"
+                    )
+            },
             methods = HttpMethod.GET,
             tags = {"Schedule"},
             responses = {
                     @OpenApiResponse(
                             status = "200",
-                            content = @OpenApiContent(from = ArrayList.class)
+                            content = @OpenApiContent(from = Map.class)
                     ),
                     @OpenApiResponse(
                             status = "400",
@@ -134,19 +137,18 @@ public class GetHandler {
             return;
         }
 
-        context.json(lessonInfoList);
+        context.json(Map.of("scheduleDate", scheduleDate.get().toString(), "lessons", lessonInfoList));
         context.status(HttpStatus.OK);
     }
 
     @OpenApi(
             summary = "Выдаёт список групп для которых есть расписание",
             operationId = "groupsList",
-            path = "/api/schedule/groups/{date}",
-            pathParams = {
+            path = "/api/schedule/groups",
+            queryParams = {
                     @OpenApiParam(
                             name = "date",
-                            description = "Дата расписания в формате yyyy-mm-dd",
-                            required = true
+                            description = "Дата расписания в формате yyyy-mm-dd"
                     )
             },
             methods = HttpMethod.GET,
@@ -187,12 +189,11 @@ public class GetHandler {
     @OpenApi(
             summary = "Выдаёт список преподавателей для которых есть расписание",
             operationId = "teachersList",
-            path = "/api/schedule/teachers/{date}",
-            pathParams = {
+            path = "/api/schedule/teachers",
+            queryParams = {
                     @OpenApiParam(
                             name = "date",
-                            description = "Дата расписания в формате yyyy-mm-dd",
-                            required = true
+                            description = "Дата расписания в формате yyyy-mm-dd"
                     )
             },
             methods = HttpMethod.GET,
@@ -232,7 +233,7 @@ public class GetHandler {
 
     @OpenApi(
             summary = "Выдаёт список преподавателей для которых есть расписание",
-            operationId = "teachersList",
+            operationId = "forceNotify",
             path = "/api/schedule/forceNotify",
             methods = HttpMethod.GET,
             tags = {"Schedule"}
@@ -254,7 +255,11 @@ public class GetHandler {
     }
 
     private static Optional<LocalDate> getScheduleDate(Context context) {
-        String strDate = context.pathParam("date");
+        String strDate = context.queryParam("date");
+
+        if (strDate == null) {
+            return DatabaseController.getInstance().getLatestScheduleDate();
+        }
 
         try {
             return Optional.of(LocalDate.parse(strDate));

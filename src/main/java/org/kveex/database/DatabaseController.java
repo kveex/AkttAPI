@@ -414,6 +414,14 @@ public class DatabaseController implements AutoCloseable {
                 });
     }
 
+    public Optional<LocalDate> getLatestScheduleDate() {
+        return context.select(SCHEDULE_DATE)
+                .from(SCHEDULES)
+                .orderBy(SCHEDULE_DATE.desc(), EDIT_DATE_TIME.desc())
+                .limit(1)
+                .fetchOptional(SCHEDULE_DATE);
+    }
+
     private Optional<Long> getScheduleID(LocalDate scheduleDate) {
         return context.select(SCHEDULES_ID)
                 .from(SCHEDULES)
