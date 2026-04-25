@@ -6,6 +6,7 @@ import org.jooq.EnumType;
 public enum LessonState implements EnumType {
     OK("OK"),
     DISTANT("DISTANT"),
+    PRACTICE("PRACTICE"),
     EMPTY("EMPTY");
 
     private final String literal;

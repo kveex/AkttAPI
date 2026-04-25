@@ -14,15 +14,14 @@ public class WebhookHandler {
     public static final Set<URI> webhooks = new HashSet<>();
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
-    public static void notifyAboutUpdate(String date) {
+    public static void notifyAboutUpdate() {
         Set<URI> forRemoval = new HashSet<>();
         webhooks.forEach(webhook -> {
             HttpRequest request;
             try {
                 request = HttpRequest.newBuilder()
                         .uri(webhook)
-                        .header("Content-Type", "text/plain; charset=UTF-8")
-                        .POST(HttpRequest.BodyPublishers.ofString(date))
+                        .POST(HttpRequest.BodyPublishers.noBody())
                         .build();
             } catch (IllegalArgumentException _) {
                 AkttAPI.LOGGER.error("Адрес для вебхука [{}] указан неверно! Удалён.", webhook);
@@ -31,7 +30,7 @@ public class WebhookHandler {
             }
 
             try {
-                HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+                HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.discarding());
             } catch (IOException | InterruptedException e) {
                 AkttAPI.LOGGER.error("Не удалось отправить уведомление об обновлении расписания на [{}]. Вебхук удалён", webhook);
                 forRemoval.add(webhook);

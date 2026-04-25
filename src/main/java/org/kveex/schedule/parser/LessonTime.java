@@ -18,6 +18,7 @@ public enum LessonTime implements EnumType {
     FOURTH_SHORT("FOURTH_SHORT"),
     PRODUCTION_PRACTICE("PRODUCTION_PRACTICE"),
     LEARNING_PRACTICE("LEARNING_PRACTICE"),
+    PRE_DIPLOMA_PRACTICE("PRE_DIPLOMA_PRACTICE"),
     CUSTOM("CUSTOM");
 
     private final String literal;
@@ -41,20 +42,22 @@ public enum LessonTime implements EnumType {
         return customTime;
     }
 
-    public static LessonTime convertFromString(String time, LocalDate scheduleDate, boolean isInSecondCampus) {
+    public static LessonTime convertFromString(String time, LocalDate scheduleDate/*, boolean isInSecondCampus*/) {
         boolean todayIsSaturday = scheduleDate.getDayOfWeek() == DayOfWeek.SATURDAY;
         return switch (time) {
             case "1,2" -> !todayIsSaturday ? FIRST : FIRST_SHORT;
-            case "3,4" -> {
-                if (todayIsSaturday) {
-                    yield SECOND_SHORT;
-                }
-                yield !isInSecondCampus ? SECOND : SECOND_FULL;
-            }
+//            case "3,4" -> {
+//                if (todayIsSaturday) {
+//                    yield SECOND_SHORT;
+//                }
+//                yield !isInSecondCampus ? SECOND : SECOND_FULL;
+//            }
+            case "3,4" -> !todayIsSaturday ? SECOND : SECOND_SHORT;
             case "5,6" -> !todayIsSaturday ? THIRD : THIRD_SHORT;
             case "7,8" -> !todayIsSaturday ? FOURTH : FOURTH_SHORT;
             case "УП" -> LEARNING_PRACTICE;
             case "ПП" -> PRODUCTION_PRACTICE;
+            case "ПДП" -> PRE_DIPLOMA_PRACTICE;
             default -> CUSTOM.setCustomTime(time);
         };
     }

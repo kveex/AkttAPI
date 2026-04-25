@@ -239,7 +239,7 @@ public class GetHandler {
             tags = {"Schedule"}
     )
     public static void forceNotify(Context ignored) {
-        WebhookHandler.notifyAboutUpdate("2026-04-06");
+        WebhookHandler.notifyAboutUpdate();
     }
 
     private static SubGroup getSubGroup(Context context) {

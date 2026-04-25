@@ -165,7 +165,7 @@ public abstract class ScheduleParser {
                 int cellIndex = columnIndex * GROUP_COLUMN_WIDTH;
                 if (cellIndex < cells.size()) {
                     String groupCellText = Objects.toString(cells.get(cellIndex)).trim();
-                    if (!groupCellText.isBlank()) {
+                    if (!groupCellText.isBlank() && !groupCellText.toLowerCase().contains("группа")) {
                         currentColumns[columnIndex] = groupCellText.toLowerCase();
                     }
                 }
@@ -189,10 +189,10 @@ public abstract class ScheduleParser {
                 String info = Objects.toString(cells.get(cellIndex + GROUP_SUBJECT_COLUMN)).trim();
 
                 if (!time.isBlank() && !info.isBlank()) {
-                    if (info.trim().equals("-")) {
-                        info = "нет пары";
+                    if (!info.trim().equals("-")) {
+//                        info = "nothing";
+                        infoList.add(new Info(groupName, time, info));
                     }
-                    infoList.add(new Info(groupName, time, info));
                 }
             }
         }
@@ -211,6 +211,8 @@ public abstract class ScheduleParser {
         String[] subjects = info.split("\\s*–\\s*");
         LessonState state = LessonState.OK;
 
+        LessonTime time = LessonTime.convertFromString(strTime, collectScheduleDate());
+
         for (String subject : subjects) {
             var rooms = findRooms(subject);
 
@@ -219,7 +221,6 @@ public abstract class ScheduleParser {
 
             for (var room : rooms) {
                 String roomNumber = room.roomName();
-                LessonTime time = LessonTime.convertFromString(strTime, collectScheduleDate(), room.isInSecondCampus());
 
                 boolean fullDistant = isWholeScheduleDistant();
 
@@ -276,7 +277,7 @@ public abstract class ScheduleParser {
 
     public static List<Room> findRooms(String info) {
         List<Room> rooms = new ArrayList<>();
-        int start = -1;
+        int start = info.length();
 
         Matcher matcher = roomPattern.matcher(info);
         while (matcher.find()) {
@@ -291,6 +292,16 @@ public abstract class ScheduleParser {
             }
             rooms.add(new Room(found, isInSecondCampus, start));
         }
+
+//        boolean isPractice = switch (time) {
+//            case LEARNING_PRACTICE, PRODUCTION_PRACTICE, PRE_DIPLOMA_PRACTICE -> true;
+//            default -> false;
+//        };
+
+        if (rooms.isEmpty() && !info.toLowerCase().contains("группа")) {
+            rooms.add(new Room("Не указан", true, start));
+        }
+
         return rooms;
     }
 
@@ -321,12 +332,16 @@ public abstract class ScheduleParser {
      * @param room Кабинет проведения учебной пары
      * @return Класс с информацией об особом случае учебной пары
      */
-    public LessonInfo checkForStaticCases(LessonTime time, String groupName, String info, String room, SubGroup subGroup) {
+    private LessonInfo checkForStaticCases(LessonTime time, String groupName, String info, String room, SubGroup subGroup) {
         String caseText = info.toLowerCase();
         String[] parts = info.split(" ");
         List<String> teacherNames;
+        boolean isPractice = switch (time) {
+            case PRE_DIPLOMA_PRACTICE, PRODUCTION_PRACTICE, LEARNING_PRACTICE -> true;
+            default -> false;
+        };
 
-        if (caseText.contains("нет пары")) {
+        if (caseText.contains("nothing")) {
             return null;
         }
 
@@ -358,17 +373,16 @@ public abstract class ScheduleParser {
             );
         }
 
-        if (time.equals(LessonTime.LEARNING_PRACTICE) || time.equals(LessonTime.PRODUCTION_PRACTICE)) {
+        if (isPractice) {
             teacherNames = findTeacherNames(caseText).getFirst();
-            String subjectName = time.equals(LessonTime.LEARNING_PRACTICE) ? "Учебная практика" : "Производственная практика";
             return new LessonInfo(
                     groupName,
                     teacherNames,
                     time,
-                    subjectName,
+                    "Не указано",
                     room,
                     subGroup,
-                    LessonState.OK,
+                    LessonState.PRACTICE,
                     time.getCustomTime()
             );
         }

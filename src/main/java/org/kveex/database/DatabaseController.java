@@ -109,6 +109,7 @@ public class DatabaseController implements AutoCloseable {
         context.createTypeIfNotExists(LessonState.OK.getName())
                 .asEnum(LessonState.OK.getLiteral(),
                         LessonState.DISTANT.getLiteral(),
+                        LessonState.PRACTICE.getLiteral(),
                         LessonState.EMPTY.getLiteral())
                 .execute();
 
@@ -124,6 +125,7 @@ public class DatabaseController implements AutoCloseable {
                         LessonTime.FOURTH_SHORT.getLiteral(),
                         LessonTime.PRODUCTION_PRACTICE.getLiteral(),
                         LessonTime.LEARNING_PRACTICE.getLiteral(),
+                        LessonTime.PRE_DIPLOMA_PRACTICE.getLiteral(),
                         LessonTime.CUSTOM.getLiteral())
                 .execute();
     }

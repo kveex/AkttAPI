@@ -59,7 +59,7 @@ public class ScheduleSaver {
             }
         }
 
-        WebhookHandler.notifyAboutUpdate(info.scheduleDate().toString());
+        WebhookHandler.notifyAboutUpdate();
         AkttAPI.LOGGER.info("Новое расписание сохранено! Дата и время изменения: {}", info.editDateTime());
     }
 }
