@@ -27,6 +27,7 @@ public class DatabaseController implements AutoCloseable {
     private static final Table<?> GROUPS = DSL.table(DSL.name("public", "groups"));
     private static final Table<?> TEACHERS = DSL.table(DSL.name("public", "teachers"));
     private static final Table<?> LESSONS = DSL.table(DSL.name("public", "lessons"));
+    private static final Table<?> LESSON_TEACHERS = DSL.table(DSL.name("public", "lesson_teachers"));
 
     private static final Field<Long> SCHEDULES_ID = DSL.field(DSL.name("id"), SQLDataType.BIGINT.nullable(false));
     private static final Field<LocalDateTime> EDIT_DATE_TIME = DSL.field(DSL.name("edit_date_time"), SQLDataType.LOCALDATETIME.nullable(false));
@@ -57,6 +58,9 @@ public class DatabaseController implements AutoCloseable {
     private static final Field<LessonTime> TIME = DSL.field(DSL.name("time"), LESSON_TIME_TYPE.nullable(false));
     private static final Field<LessonState> STATE = DSL.field(DSL.name("state"), LESSON_STATE_TYPE.nullable(false));
     private static final Field<String> CUSTOM_TIME = DSL.field(DSL.name("custom_name"), SQLDataType.NVARCHAR.nullable(true));
+
+    private static final Field<Long> LESSON_TEACHERS_LESSON_ID = DSL.field(DSL.name("lesson_link_id"), SQLDataType.BIGINT.nullable(false));
+    private static final Field<Long> LESSON_TEACHERS_TEACHER_ID = DSL.field(DSL.name("teacher_link_id"), SQLDataType.BIGINT.nullable(false));
 
     private final Connection connection;
     private final DSLContext context;
@@ -96,7 +100,9 @@ public class DatabaseController implements AutoCloseable {
         createGroupsTable();
         createTeachersTable();
         createLessonsTable();
+        createLessonTeachersTable();
         createIndexes();
+        migrateLessonTeachers();
     }
 
     private void createTypes() {
@@ -202,6 +208,25 @@ public class DatabaseController implements AutoCloseable {
                 .execute();
     }
 
+    private void createLessonTeachersTable() {
+        context.createTableIfNotExists(LESSON_TEACHERS)
+                .column(LESSON_TEACHERS_LESSON_ID)
+                .column(LESSON_TEACHERS_TEACHER_ID)
+                .constraints(
+                        DSL.constraint("pk_lesson_teachers")
+                                .primaryKey(LESSON_TEACHERS_LESSON_ID, LESSON_TEACHERS_TEACHER_ID),
+                        DSL.constraint("fk_lesson_teachers_lesson_id_lessons_id")
+                                .foreignKey(LESSON_TEACHERS_LESSON_ID)
+                                .references(LESSONS, LESSONS_ID)
+                                .onDeleteCascade(),
+                        DSL.constraint("fk_lesson_teachers_teacher_id_teachers_id")
+                                .foreignKey(LESSON_TEACHERS_TEACHER_ID)
+                                .references(TEACHERS, TEACHERS_ID)
+                                .onDeleteCascade()
+                )
+                .execute();
+    }
+
     private void createIndexes() {
         context.createIndexIfNotExists("idx_groups_schedule_id")
                 .on(GROUPS, GROUPS_SCHEDULE_ID)
@@ -221,6 +246,25 @@ public class DatabaseController implements AutoCloseable {
 
         context.createIndexIfNotExists("idx_lessons_teacher_id")
                 .on(LESSONS, LESSONS_TEACHER_ID)
+                .execute();
+
+        context.createIndexIfNotExists("idx_lesson_teachers_lesson_id")
+                .on(LESSON_TEACHERS, LESSON_TEACHERS_LESSON_ID)
+                .execute();
+
+        context.createIndexIfNotExists("idx_lesson_teachers_teacher_id")
+                .on(LESSON_TEACHERS, LESSON_TEACHERS_TEACHER_ID)
+                .execute();
+    }
+
+    private void migrateLessonTeachers() {
+        context.insertInto(LESSON_TEACHERS, LESSON_TEACHERS_LESSON_ID, LESSON_TEACHERS_TEACHER_ID)
+                .select(
+                        context.select(LESSONS_ID, LESSONS_TEACHER_ID)
+                                .from(LESSONS)
+                                .where(LESSONS_TEACHER_ID.isNotNull())
+                )
+                .onConflictDoNothing()
                 .execute();
     }
 
@@ -279,37 +323,44 @@ public class DatabaseController implements AutoCloseable {
                 throw new IllegalStateException("Не найдена группа в БД: \"" + lessonInfo.groupName() + "\"");
             }
 
-            Long teacherId = null;
             List<String> teacherNames = lessonInfo.teacherNames() == null ? List.of() : lessonInfo.teacherNames();
-            for (String teacherName : teacherNames) {
-                teacherId = teachers.get(teacherName);
-                if (teacherId != null) {
-                    break;
-                }
-            }
-
-            if (teacherId == null && !teacherNames.isEmpty()) {
-                AkttAPI.LOGGER.warn("Для урока '{}' не найден преподаватель из списка: {}",
-                        lessonInfo.subjectName(), teacherNames);
-            }
-
             String customTime = lessonInfo.time().equals(LessonTime.CUSTOM) ? lessonInfo.time().getCustomTime() : null;
 
-            Query query = context.insertInto(LESSONS)
+            Long lessonId = context.insertInto(LESSONS)
                     .set(LESSONS_SCHEDULE_ID, scheduleId)
-                    .set(LESSONS_TEACHER_ID, teacherId)
                     .set(LESSONS_GROUP_ID, groupId)
                     .set(SUBJECT_NAME, lessonInfo.subjectName())
                     .set(ROOM, lessonInfo.room())
                     .set(SUBGROUP, lessonInfo.subGroup())
                     .set(TIME, lessonInfo.time())
                     .set(STATE, lessonInfo.state())
-                    .set(CUSTOM_TIME, customTime);
+                    .set(CUSTOM_TIME, customTime)
+                    .returningResult(LESSONS_ID)
+                    .fetchOne(LESSONS_ID);
 
-            queries.add(query);
+            if (lessonId == null) {
+                throw new IllegalStateException("Не удалось сохранить урок: \"" + lessonInfo.subjectName() + "\"");
+            }
+
+            for (String teacherName : teacherNames) {
+                Long teacherId = teachers.get(teacherName);
+                if (teacherId == null) {
+                    AkttAPI.LOGGER.warn("Для урока '{}' не найден преподаватель: {}",
+                            lessonInfo.subjectName(), teacherName);
+                    continue;
+                }
+
+                Query query = context.insertInto(LESSON_TEACHERS)
+                        .set(LESSON_TEACHERS_LESSON_ID, lessonId)
+                        .set(LESSON_TEACHERS_TEACHER_ID, teacherId)
+                        .onConflictDoNothing();
+                queries.add(query);
+            }
         }
 
-        context.batch(queries).execute();
+        if (!queries.isEmpty()) {
+            context.batch(queries).execute();
+        }
     }
 
 
@@ -328,16 +379,14 @@ public class DatabaseController implements AutoCloseable {
         if (groupIdOpt.isEmpty()) return Collections.emptyList();
         long groupId = groupIdOpt.get();
 
-        Map<Long, String> teachersById = context.select(TEACHERS_ID, TEACHERS_NAME)
-                .from(TEACHERS)
-                .where(TEACHERS_SCHEDULE_ID.eq(scheduleId))
-                .fetchMap(TEACHERS_ID, TEACHERS_NAME);
+        Map<Long, List<String>> teacherNamesByLessonId = getTeacherNamesByLessonId(scheduleId);
 
         Condition subgroupCondition = (subGroup == SubGroup.BOTH)
                 ? DSL.trueCondition()
                 : SUBGROUP.in(subGroup, SubGroup.BOTH);
 
         return context.select(
+                        LESSONS_ID,
                         LESSONS_TEACHER_ID,
                         TIME,
                         SUBJECT_NAME,
@@ -351,12 +400,17 @@ public class DatabaseController implements AutoCloseable {
                 .and(LESSONS_GROUP_ID.eq(groupId))
                 .and(subgroupCondition)
                 .fetch(r -> {
+                    Long lessonId = r.get(LESSONS_ID);
                     Long teacherId = r.get(LESSONS_TEACHER_ID);
-                    String teacherName = teacherId == null ? null : teachersById.get(teacherId);
+                    List<String> teacherNames = teacherNamesByLessonId.getOrDefault(lessonId, List.of());
+
+                    if (teacherNames.isEmpty() && teacherId != null) {
+                        teacherNames = getTeacherNamesForLegacyLesson(scheduleId, teacherId);
+                    }
 
                     return new LessonInfo(
                             groupName,
-                            teacherName == null ? List.of() : List.of(teacherName),
+                            teacherNames,
                             r.get(TIME),
                             r.get(SUBJECT_NAME),
                             r.get(ROOM),
@@ -387,8 +441,12 @@ public class DatabaseController implements AutoCloseable {
                 .where(GROUPS_SCHEDULE_ID.eq(scheduleId))
                 .fetchMap(GROUPS_ID, GROUPS_NAME);
 
+        Map<Long, List<String>> teacherNamesByLessonId = getTeacherNamesByLessonId(scheduleId);
+
         return context.select(
+                        LESSONS_ID,
                         LESSONS_GROUP_ID,
+                        LESSONS_TEACHER_ID,
                         TIME,
                         SUBJECT_NAME,
                         ROOM,
@@ -397,15 +455,26 @@ public class DatabaseController implements AutoCloseable {
                         CUSTOM_TIME
                 )
                 .from(LESSONS)
+                .leftJoin(LESSON_TEACHERS)
+                .on(LESSON_TEACHERS_LESSON_ID.eq(LESSONS_ID))
                 .where(LESSONS_SCHEDULE_ID.eq(scheduleId))
-                .and(LESSONS_TEACHER_ID.eq(teacherId))
+                .and(
+                        LESSON_TEACHERS_TEACHER_ID.eq(teacherId)
+                                .or(LESSONS_TEACHER_ID.eq(teacherId))
+                )
                 .fetch(r -> {
+                    Long lessonId = r.get(LESSONS_ID);
                     Long groupId = r.get(LESSONS_GROUP_ID);
                     String groupName = groupId == null ? null : groupsById.get(groupId);
+                    List<String> teacherNames = teacherNamesByLessonId.getOrDefault(lessonId, List.of());
+
+                    if (teacherNames.isEmpty()) {
+                        teacherNames = getTeacherNamesForLegacyLesson(scheduleId, r.get(LESSONS_TEACHER_ID));
+                    }
 
                     return new LessonInfo(
                             groupName,
-                            teacherName == null ? List.of() : List.of(teacherName),
+                            teacherNames,
                             r.get(TIME),
                             r.get(SUBJECT_NAME),
                             r.get(ROOM),
@@ -414,6 +483,41 @@ public class DatabaseController implements AutoCloseable {
                             r.get(CUSTOM_TIME)
                     );
                 });
+    }
+
+    private Map<Long, List<String>> getTeacherNamesByLessonId(long scheduleId) {
+        Map<Long, List<String>> result = new HashMap<>();
+
+        Result<Record2<Long, String>> records = context.select(LESSON_TEACHERS_LESSON_ID, TEACHERS_NAME)
+                .from(LESSON_TEACHERS)
+                .join(TEACHERS)
+                .on(LESSON_TEACHERS_TEACHER_ID.eq(TEACHERS_ID))
+                .where(TEACHERS_SCHEDULE_ID.eq(scheduleId))
+                .orderBy(LESSON_TEACHERS_LESSON_ID.asc(), TEACHERS_NAME.asc())
+                .fetch();
+
+        for (Record2<Long, String> record : records) {
+            Long lessonId = record.get(LESSON_TEACHERS_LESSON_ID);
+            String teacherName = record.get(TEACHERS_NAME);
+            result.computeIfAbsent(lessonId, ignored -> new ArrayList<>()).add(teacherName);
+        }
+
+        return result;
+    }
+
+    private List<String> getTeacherNamesForLegacyLesson(long scheduleId, Long teacherId) {
+        if (teacherId == null) {
+            return List.of();
+        }
+
+        String teacherName = context.select(TEACHERS_NAME)
+                .from(TEACHERS)
+                .where(TEACHERS_SCHEDULE_ID.eq(scheduleId))
+                .and(TEACHERS_ID.eq(teacherId))
+                .fetchOptional(TEACHERS_NAME)
+                .orElse(null);
+
+        return teacherName == null ? List.of() : List.of(teacherName);
     }
 
     public Optional<LocalDate> getLatestScheduleDate() {

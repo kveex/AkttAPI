@@ -7,6 +7,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 
 public enum LessonTime implements EnumType {
+    CUSTOM("CUSTOM"),
     FIRST("FIRST"),
     FIRST_SHORT("FIRST_SHORT"),
     SECOND("SECOND"),
@@ -18,8 +19,7 @@ public enum LessonTime implements EnumType {
     FOURTH_SHORT("FOURTH_SHORT"),
     PRODUCTION_PRACTICE("PRODUCTION_PRACTICE"),
     LEARNING_PRACTICE("LEARNING_PRACTICE"),
-    PRE_DIPLOMA_PRACTICE("PRE_DIPLOMA_PRACTICE"),
-    CUSTOM("CUSTOM");
+    PRE_DIPLOMA_PRACTICE("PRE_DIPLOMA_PRACTICE");
 
     private final String literal;
     private String customTime = null;

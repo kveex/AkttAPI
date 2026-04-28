@@ -14,10 +14,7 @@ import org.kveex.schedule.parser.LessonInfo;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public class GetHandler {
     public static void showTest(Context context) {
@@ -75,6 +72,7 @@ public class GetHandler {
         if (scheduleDate.isEmpty()) return;
 
         List<LessonInfo> lessonInfoList = databaseController.getLessonsForGroup(scheduleDate.get(), groupName, subGroup);
+        lessonInfoList.sort(Comparator.comparingInt(lessonInfo -> lessonInfo.time().ordinal()));
 
         if (lessonInfoList.isEmpty()) {
             context.json(Map.of("error", "Расписание для группы [%s] не найдено".formatted(groupName)));
@@ -130,6 +128,7 @@ public class GetHandler {
         if (scheduleDate.isEmpty()) return;
 
         List<LessonInfo> lessonInfoList = databaseController.getLessonsForTeacher(scheduleDate.get(), teacherName);
+        lessonInfoList.sort(Comparator.comparingInt(lessonInfo -> lessonInfo.time().ordinal()));
 
         if (lessonInfoList.isEmpty()) {
             context.json(Map.of("error", "Расписание для преподавателя [%s] не найдено".formatted(teacherName)));
