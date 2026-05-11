@@ -43,14 +43,24 @@ public class PDFScheduleParser extends ScheduleParser {
 
     @Override
     public ScheduleInfo parse() {
-        List<LessonInfo> lessons = buildLessonsList();
-        return new ScheduleInfo(
-                collectScheduleEditDate(),
-                collectScheduleDate(),
-                lessons,
-                provideGroupsList(),
-                collectAllTeachers()
-        );
+        try {
+            List<LessonInfo> lessons = buildLessonsList();
+            return new ScheduleInfo(
+                    collectScheduleEditDate(),
+                    collectScheduleDate(),
+                    lessons,
+                    provideGroupsList(),
+                    collectAllTeachers()
+            );
+        } finally {
+            if (document != null) {
+                try {
+                    document.close();
+                } catch (IOException e) {
+                    AkttAPI.LOGGER.warn("Не удалось закрыть PDF документ: {}", e.toString());
+                }
+            }
+        }
     }
 
     private void updateDocument(byte[] bytes) {
@@ -58,7 +68,6 @@ public class PDFScheduleParser extends ScheduleParser {
             document = Loader.loadPDF(bytes);
         } catch (IOException e) {
             AkttAPI.LOGGER.error("Ошибка при загрузке PDF: {}", e.toString());
-            document = null;
         }
     }
 

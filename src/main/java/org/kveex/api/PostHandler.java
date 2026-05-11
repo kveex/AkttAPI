@@ -107,9 +107,15 @@ public class PostHandler {
         URI uri;
 
         try {
-            uri = URI.create(context.body());
+            uri = URI.create(context.body().trim());
         } catch (IllegalArgumentException e) {
             AkttAPI.LOGGER.error("Вебхук не получилось преобразовать в URI: {}", e.toString());
+            context.status(HttpStatus.BAD_REQUEST);
+            return;
+        }
+
+        String scheme = uri.getScheme();
+        if (!uri.isAbsolute() || scheme == null || !(scheme.equals("http") || scheme.equals("https"))) {
             context.status(HttpStatus.BAD_REQUEST);
             return;
         }

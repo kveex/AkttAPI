@@ -25,8 +25,9 @@ public class HTMLScheduleParser extends ScheduleParser {
     }
 
     private void updateDocument() {
+        Document newDocument = null;
         try {
-            document = Jsoup.connect(URL).get();
+            newDocument = Jsoup.connect(URL).get();
         }
         catch (ConnectException e) {
             AkttAPI.LOGGER.error("Ошибка подключения к сайту АКТТ! Проверьте подключение к интернету или настройки сети!");
@@ -34,6 +35,7 @@ public class HTMLScheduleParser extends ScheduleParser {
         catch (IOException e) {
             AkttAPI.LOGGER.error("Документ HTML парсера не обновлён! Причина: {}", e.toString());
         }
+        if (newDocument != null) document = newDocument;
     }
 
     @Override

@@ -170,9 +170,9 @@ public abstract class ScheduleParser {
             for (int columnIndex = 0; columnIndex < 3; columnIndex++) {
                 int cellIndex = columnIndex * GROUP_COLUMN_WIDTH;
                 if (cellIndex < cells.size()) {
-                    String groupCellText = Objects.toString(cells.get(cellIndex)).trim();
-                    if (!groupCellText.isBlank() && !groupCellText.toLowerCase().contains("группа")) {
-                        currentColumns[columnIndex] = groupCellText.toLowerCase();
+                    String groupCellText = Objects.toString(cells.get(cellIndex)).toLowerCase().trim();
+                    if (!groupCellText.isBlank() && !groupCellText.contains("группа")) {
+                        currentColumns[columnIndex] = groupCellText.replace("дистант", "").trim();
                     }
                 }
             }
@@ -370,7 +370,7 @@ public abstract class ScheduleParser {
 
         if (caseText.contains("лыжи снежинка")) {
             String subjectName = parts[0];
-            teacherNames = findTeacherNames(caseText).getFirst();
+            teacherNames = findTeacherNames(info).getFirst();
             return new LessonInfo(
                     groupName,
                     teacherNames,
@@ -384,7 +384,7 @@ public abstract class ScheduleParser {
         }
 
         if (isPractice) {
-            teacherNames = findTeacherNames(caseText).getFirst();
+            teacherNames = findTeacherNames(info).getFirst();
             return new LessonInfo(
                     groupName,
                     teacherNames,

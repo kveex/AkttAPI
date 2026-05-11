@@ -246,7 +246,13 @@ public class GetHandler {
         String strDate = context.queryParam("date");
 
         if (strDate == null) {
-            return DatabaseController.getInstance().getLatestScheduleDate();
+            Optional<LocalDate> latest = DatabaseController.getInstance().getLatestScheduleDate();
+
+            if (latest.isEmpty()) {
+                context.status(HttpStatus.NOT_FOUND);
+                context.json(Map.of("error", "Расписание пока не загружено"));
+            }
+            return latest;
         }
 
         try {
