@@ -1,78 +1,62 @@
 package org.kveex;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import io.javalin.Javalin;
 import io.javalin.openapi.plugin.OpenApiPlugin;
+import io.javalin.openapi.plugin.OpenApiPluginConfiguration;
 import io.javalin.openapi.plugin.swagger.SwaggerPlugin;
 import io.javalin.util.JavalinBindException;
-import org.kveex.api.ArgsParser;
 import org.kveex.api.GetHandler;
 import org.kveex.api.PostHandler;
-import org.kveex.schedule.ScheduleHandlerV2;
+import org.kveex.database.DatabaseController;
+import org.kveex.schedule.ScheduleSaver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 public class AkttAPI {
     public static final String ID = "AKTT_API";
     public static final Logger LOGGER = LoggerFactory.getLogger(ID);
+    private static final int minimumRepeatDelayMs = 30 * 60 * 1000;
+    private static String databaseUrl;
     private static int port;
     private static int repeatDelay;
-    private static ScheduleHandlerV2 scheduleHandler;
 
-    public static void main(String[] args) {
-        setArgs(args);
-        makeScheduleHandler();
+    static void main() {
+        setArgs();
+        DatabaseController.initialize(databaseUrl);
+        ScheduleSaver _ = new ScheduleSaver(repeatDelay);
         startApp();
     }
 
-    private static void setArgs(String[] args) {
-        ArgsParser argsParser = new ArgsParser();
-        argsParser.parse(args);
-        port = argsParser.getPort();
-        repeatDelay = argsParser.getRepeatDelayMs();
-    }
+    private static void setArgs() {
+        Dotenv dotenv = Dotenv.load();
 
-    private static void makeScheduleHandler() {
-        try {
-            scheduleHandler = new ScheduleHandlerV2(repeatDelay);
-        } catch (IOException e) {
-            LOGGER.error("ScheduleHandler сломан! Ошибка: {}", e.toString());
-            System.exit(1);
+        if (dotenv.get("DATABASE_URL") == null) throw new IllegalStateException("Не указана ссылка подключения к базе данных!");
+
+        databaseUrl = dotenv.get("DATABASE_URL");
+        port = dotenv.get("PORT") == null ? 16311 : Integer.parseInt(dotenv.get("PORT"));
+        repeatDelay = dotenv.get("REPEAT_DELAY_MINUTES") == null ? minimumRepeatDelayMs : Integer.parseInt(dotenv.get("REPEAT_DELAY_MINUTES")) * 60 * 1000;
+        if (repeatDelay < minimumRepeatDelayMs) {
+            repeatDelay = minimumRepeatDelayMs;
+            LOGGER.warn("Промежуток между проверками расписания не может быть меньше получаса! Установлен стандартный промежуток (30 минут)");
         }
     }
 
     private static void startApp() {
-        var app = Javalin.create(config -> {
-                config.showJavalinBanner = false;
-                config.registerPlugin(new OpenApiPlugin(pluginConfig ->
-                        pluginConfig.withDocumentationPath("/openapi")
-                                .withDefinitionConfiguration(
-                                        (ignored, definition) -> definition.withInfo(
-                                                info -> {
-                                    info.setTitle("AKTT Schedule API");
-                                    info.setVersion("1.1.2");
-                                    info.setDescription("API для взаимодействия с сервисами АКТТ");
-                                }))
-                        )
-                );
+        Javalin app = Javalin.create(config -> {
+                config.registerPlugin(new OpenApiPlugin(AkttAPI::configureOpenApi));
+                config.registerPlugin(new SwaggerPlugin());
 
-                config.registerPlugin(new SwaggerPlugin(pluginConfig -> {
-                    pluginConfig.setUiPath("/swagger-ui");
-                    pluginConfig.setDocumentationPath("/openapi");
-                    pluginConfig.setTitle("AKTT API by kveex");
-                }));
+                config.routes.get("/", GetHandler::showTest);
+                config.routes.get("/api/schedule/student/{groupName}", GetHandler::studentSchedule);
+                config.routes.get("/api/schedule/teacher/{teacherName}", GetHandler::teacherSchedule);
+                config.routes.get("/api/schedule/groups", GetHandler::groupsList);
+                config.routes.get("/api/schedule/teachers", GetHandler::teachersList);
+//                config.routes.get("/api/schedule/forceNotify", GetHandler::forceNotify);
+                config.routes.post("/api/pdf-upload", PostHandler::handlePdfUpload);
+                config.routes.post("/api/webhook", PostHandler::addWebHook);
             }
-        )
-        .get("/", GetHandler::showTest)
-        .get("/api/schedule/groups", ctx -> GetHandler.getGroupsList(scheduleHandler, ctx))
-        .get("/api/schedule/student/{group}", ctx -> GetHandler.getScheduleGroupBothSubGroups(scheduleHandler, ctx))
-        .get("/api/schedule/student/{group}/{subGroup}", ctx -> GetHandler.getScheduleGroupDefinedSubGroup(scheduleHandler, ctx))
-        .get("/api/schedule/teachers", ctx -> GetHandler.getTeachersList(scheduleHandler, ctx))
-        .get("/api/schedule/teacher/{teacher}", ctx -> GetHandler.getTeacherSchedule(scheduleHandler, ctx))
-        .get("/api/schedule/", ctx -> GetHandler.getSchedule(scheduleHandler, ctx))
-        .get("/api/schedule/date", ctx -> GetHandler.getScheduleDate(scheduleHandler, ctx))
-        .post("/api/certificate-upload", PostHandler::handleCertificate);
+        );
 
         try {
             app.start(port);
@@ -82,7 +66,18 @@ public class AkttAPI {
         }
 
         LOGGER.info("API запущено на порту: {}", port);
-        LOGGER.info("OpenAPI спецификация: http://localhost:{}/openapi", port);
-        LOGGER.info("Swagger UI: http://localhost:{}/swagger-ui", port);
+        LOGGER.info("Swagger UI: <server-ip>:{}/swagger", port);
+    }
+
+    private static void configureOpenApi(OpenApiPluginConfiguration openapi) {
+        openapi.withDefinitionConfiguration((_, builder) -> builder.info(info -> {
+            info.title("AKTT API");
+            info.description("API предоставляющая доступ к некоторым услугам AKTT");
+            info.version("2.0");
+            info.withLicense(license -> {
+                license.name("MIT");
+                license.identifier("MIT");
+            });
+        }));
     }
 }

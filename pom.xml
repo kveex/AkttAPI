@@ -6,16 +6,34 @@
 
     <groupId>org.kveex</groupId>
     <artifactId>akttApi</artifactId>
-    <version>1.1.2</version>
+    <version>2.0</version>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+
     <dependencies>
+        <dependency>
+            <!--Библиотека для postgres баз данных-->
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq</artifactId>
+            <version>3.21.0</version>
+        </dependency>
+        <dependency>
+            <!--Библиотека для взаимодействия с .env файлом-->
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.2.0</version>
+        </dependency>
         <dependency>
             <!--Библиотека для парсинга html файлов-->
             <groupId>org.jsoup</groupId>
@@ -23,49 +41,51 @@
             <version>1.22.1</version>
         </dependency>
         <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.7</version>
+        </dependency>
+        <dependency>
             <!--Библиотека для работы с json-->
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.17.2</version>
+            <version>2.21.1</version>
         </dependency>
         <dependency>
             <!--Библиотека для поддержки LocalDate и LocalDateTime-->
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-            <version>2.17.2</version>
+            <version>2.21.1</version>
         </dependency>
         <dependency>
+            <!--Библиотека для создания REST API-->
             <groupId>io.javalin</groupId>
             <artifactId>javalin</artifactId>
-            <version>6.7.0</version>
+            <version>7.0.1</version>
         </dependency>
         <dependency>
+            <!--Плагин для javalin добавляющий openapi описание-->
             <groupId>io.javalin.community.openapi</groupId>
             <artifactId>javalin-openapi-plugin</artifactId>
-            <version>6.7.0</version>
+            <version>7.0.1</version>
         </dependency>
         <dependency>
+            <!--Плагин для javalin добавляющий swagger-->
             <groupId>io.javalin.community.openapi</groupId>
             <artifactId>javalin-swagger-plugin</artifactId>
-            <version>6.7.0</version>
+            <version>7.0.1</version>
         </dependency>
         <dependency>
             <!--Библиотека для логирования-->
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
-            <version>2.0.16</version>
-        </dependency>
-        <dependency>
-            <!--Библиотека для удобной настройки и получения информации из аргументов запуска-->
-            <groupId>commons-cli</groupId>
-            <artifactId>commons-cli</artifactId>
-            <version>1.9.0</version>
+            <version>2.0.17</version>
         </dependency>
         <dependency>
             <!--Аннотации для кода-->
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
-            <version>RELEASE</version>
+            <version>26.1.0</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>
@@ -98,15 +118,15 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.1</version>
+                <version>3.15.0</version>
                 <configuration>
-                    <source>21</source>
-                    <target>21</target>
+                    <source>25</source>
+                    <target>25</target>
                     <annotationProcessorPaths>
                         <annotationProcessorPath>
                             <groupId>io.javalin.community.openapi</groupId>
                             <artifactId>openapi-annotation-processor</artifactId>
-                            <version>6.7.0</version>
+                            <version>7.0.1</version>
                         </annotationProcessorPath>
                     </annotationProcessorPaths>
                 </configuration>
