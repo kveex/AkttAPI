@@ -5,8 +5,10 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.kveex.AkttAPI;
+import org.kveex.schedule.type.ScheduleInfo;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
@@ -25,7 +27,11 @@ public class HTMLScheduleParser extends ScheduleParser {
     private void updateDocument() {
         try {
             document = Jsoup.connect(URL).get();
-        } catch (IOException e) {
+        }
+        catch (ConnectException e) {
+            AkttAPI.LOGGER.error("Ошибка подключения к сайту АКТТ! Проверьте подключение к интернету или настройки сети!");
+        }
+        catch (IOException e) {
             AkttAPI.LOGGER.error("Документ HTML парсера не обновлён! Причина: {}", e.toString());
         }
     }

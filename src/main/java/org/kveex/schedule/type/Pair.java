@@ -1,4 +1,4 @@
-package org.kveex.schedule.parser;
+package org.kveex.schedule.type;
 
 public record Pair<A, B>(A first, B second) {
     public A getFirst() { return first; }

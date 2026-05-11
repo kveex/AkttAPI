@@ -1,4 +1,4 @@
-package org.kveex.schedule;
+package org.kveex.schedule.type;
 
 import org.jetbrains.annotations.NotNull;
 import org.jooq.EnumType;

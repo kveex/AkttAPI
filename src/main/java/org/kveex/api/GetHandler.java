@@ -9,8 +9,8 @@ import io.javalin.openapi.OpenApiParam;
 import io.javalin.openapi.OpenApiResponse;
 import org.kveex.AkttAPI;
 import org.kveex.database.DatabaseController;
-import org.kveex.schedule.SubGroup;
-import org.kveex.schedule.parser.LessonInfo;
+import org.kveex.schedule.type.SubGroup;
+import org.kveex.schedule.type.LessonInfo;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -228,17 +228,6 @@ public class GetHandler {
 
         context.json(teachersList);
         context.status(HttpStatus.OK);
-    }
-
-    @OpenApi(
-            summary = "Выдаёт список преподавателей для которых есть расписание",
-            operationId = "forceNotify",
-            path = "/api/schedule/forceNotify",
-            methods = HttpMethod.GET,
-            tags = {"Schedule"}
-    )
-    public static void forceNotify(Context ignored) {
-        WebhookHandler.notifyAboutUpdate();
     }
 
     private static SubGroup getSubGroup(Context context) {

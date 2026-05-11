@@ -4,6 +4,8 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.kveex.AkttAPI;
+import org.kveex.schedule.type.LessonInfo;
+import org.kveex.schedule.type.ScheduleInfo;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -20,6 +22,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+//Этот класс полностью написан ИИ, я так и не понял, как правильно справиться с PDF, так что хоть убейте, не хочу это трогать
 public class PDFScheduleParser extends ScheduleParser {
     private static final Pattern GROUP_PATTERN = Pattern.compile("(?<!\\S)\\d{2}-\\d{2}[A-Za-zА-Яа-яЁё\\d]{2,8}(?!\\S)");
     private static final Pattern TIME_PATTERN = Pattern.compile(
@@ -109,7 +112,8 @@ public class PDFScheduleParser extends ScheduleParser {
                 continue;
             }
 
-            List<String> groupSegments = splitByGroupStarts(normalizedLine);
+            List<String> groupSegments = splitByStartsWith(normalizedLine, GROUP_PATTERN);
+
             if (groupSegments.size() > 1) {
                 for (int columnIndex = 0; columnIndex < Math.min(3, groupSegments.size()); columnIndex++) {
                     handleSegment(groupSegments.get(columnIndex), columnIndex, currentGroups, lastEntries, drafts);
@@ -117,7 +121,7 @@ public class PDFScheduleParser extends ScheduleParser {
                 continue;
             }
 
-            List<String> timeSegments = splitByTimeStarts(rawLine);
+            List<String> timeSegments = splitByStartsWith(rawLine, TIME_SPLIT_PATTERN);
             if (timeSegments.size() > 1) {
                 for (int columnIndex = 0; columnIndex < Math.min(3, timeSegments.size()); columnIndex++) {
                     handleSegment(timeSegments.get(columnIndex), columnIndex, currentGroups, lastEntries, drafts);
@@ -231,39 +235,20 @@ public class PDFScheduleParser extends ScheduleParser {
         return Arrays.asList(parts);
     }
 
-    private List<String> splitByGroupStarts(String line) {
+    private List<String> splitByStartsWith(String rawLine, Pattern pattern) {
         List<String> parts = new ArrayList<>();
-        Matcher matcher = GROUP_PATTERN.matcher(line);
+        Matcher matcher = pattern.matcher(rawLine);
         int currentStart = -1;
 
         while (matcher.find()) {
             if (currentStart != -1) {
-                parts.add(normalize(line.substring(currentStart, matcher.start())));
+                parts.add(normalize(rawLine.substring(currentStart, matcher.start())));
             }
             currentStart = matcher.start();
         }
 
         if (currentStart != -1) {
-            parts.add(normalize(line.substring(currentStart)));
-        }
-
-        return parts;
-    }
-
-    private List<String> splitByTimeStarts(String line) {
-        List<String> parts = new ArrayList<>();
-        Matcher matcher = TIME_SPLIT_PATTERN.matcher(line);
-        int currentStart = -1;
-
-        while (matcher.find()) {
-            if (currentStart != -1) {
-                parts.add(normalize(line.substring(currentStart, matcher.start())));
-            }
-            currentStart = matcher.start();
-        }
-
-        if (currentStart != -1) {
-            parts.add(normalize(line.substring(currentStart)));
+            parts.add(normalize(rawLine.substring(currentStart)));
         }
 
         return parts;

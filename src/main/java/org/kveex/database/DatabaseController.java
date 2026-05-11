@@ -5,11 +5,11 @@ import org.jooq.exception.DataAccessException;
 import org.jooq.impl.DSL;
 import org.jooq.impl.SQLDataType;
 import org.kveex.AkttAPI;
-import org.kveex.schedule.LessonState;
-import org.kveex.schedule.SubGroup;
-import org.kveex.schedule.parser.LessonInfo;
-import org.kveex.schedule.parser.LessonTime;
-import org.kveex.schedule.parser.ScheduleInfo;
+import org.kveex.schedule.type.LessonState;
+import org.kveex.schedule.type.SubGroup;
+import org.kveex.schedule.type.LessonInfo;
+import org.kveex.schedule.type.LessonTime;
+import org.kveex.schedule.type.ScheduleInfo;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

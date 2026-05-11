@@ -1,4 +1,4 @@
-package org.kveex.schedule.parser;
+package org.kveex.schedule.type;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

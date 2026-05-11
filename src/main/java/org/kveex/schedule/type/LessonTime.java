@@ -1,4 +1,4 @@
-package org.kveex.schedule.parser;
+package org.kveex.schedule.type;
 
 import org.jetbrains.annotations.NotNull;
 import org.jooq.EnumType;
@@ -46,12 +46,6 @@ public enum LessonTime implements EnumType {
         boolean todayIsSaturday = scheduleDate.getDayOfWeek() == DayOfWeek.SATURDAY;
         return switch (time) {
             case "1,2" -> !todayIsSaturday ? FIRST : FIRST_SHORT;
-//            case "3,4" -> {
-//                if (todayIsSaturday) {
-//                    yield SECOND_SHORT;
-//                }
-//                yield !isInSecondCampus ? SECOND : SECOND_FULL;
-//            }
             case "3,4" -> !todayIsSaturday ? SECOND : SECOND_SHORT;
             case "5,6" -> !todayIsSaturday ? THIRD : THIRD_SHORT;
             case "7,8" -> !todayIsSaturday ? FOURTH : FOURTH_SHORT;

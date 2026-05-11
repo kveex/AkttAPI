@@ -1,7 +1,4 @@
-package org.kveex.schedule.parser;
-
-import org.kveex.schedule.LessonState;
-import org.kveex.schedule.SubGroup;
+package org.kveex.schedule.type;
 
 import java.util.List;
 

@@ -6,7 +6,7 @@ import org.kveex.api.WebhookHandler;
 import org.kveex.database.DatabaseController;
 import org.kveex.schedule.parser.HTMLScheduleParser;
 import org.kveex.schedule.parser.PDFScheduleParser;
-import org.kveex.schedule.parser.ScheduleInfo;
+import org.kveex.schedule.type.ScheduleInfo;
 
 import java.sql.SQLDataException;
 import java.sql.SQLException;

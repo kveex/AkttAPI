@@ -1,7 +1,6 @@
 package org.kveex.schedule.parser;
 
-import org.kveex.schedule.LessonState;
-import org.kveex.schedule.SubGroup;
+import org.kveex.schedule.type.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,10 +27,6 @@ public abstract class ScheduleParser {
 
     public abstract ScheduleInfo parse();
 
-    /**
-     * Узнаёт всё ли расписание рассчитано на дистант, если это указано в заголовке расписания
-     * @return True если дистант, иначе False
-     */
     public abstract boolean isWholeScheduleDistant();
 
     public abstract Set<String> provideGroupsList();
@@ -67,6 +62,10 @@ public abstract class ScheduleParser {
         return groups;
     }
 
+    /**
+     * Получает дату на которую рассчитано расписание из документа
+     * @return LocalDate класс с датой
+     */
     public LocalDate collectScheduleDate() {
         String[] dateParts = new String[8];
         List<String> months = List.of(
@@ -150,6 +149,13 @@ public abstract class ScheduleParser {
         return lessons;
     }
 
+    /**
+     * Алгоритм собирающий из документа информацию о времени проведения и информацию об учебной паре
+     * @param rows Полные строки
+     * @param rowToCells Преобразованные в ячейки строки
+     * @return Список классов с информацией об учебных парах
+     * @param <T> Адаптер для разных форматов текста (в разных библиотеках используется разные перебираемые форматы строк)
+     */
     public <T> List<Info> getTimeAndInfoList(Iterable<T> rows,
                                              Function<T, List<String>> rowToCells) {
         List<Info> infoList = new ArrayList<>();
@@ -190,7 +196,6 @@ public abstract class ScheduleParser {
 
                 if (!time.isBlank() && !info.isBlank()) {
                     if (!info.trim().equals("-")) {
-//                        info = "nothing";
                         infoList.add(new Info(groupName, time, info));
                     }
                 }
@@ -265,6 +270,11 @@ public abstract class ScheduleParser {
         return result;
     }
 
+    /**
+     * Ищет подгруппу в информации учебной пары
+     * @param info полная информация об учебной паре с преподавателем, кабинетом, подгруппой и т.д.
+     * @return Пара на первом месте у которой найденная подгруппа, а на втором индекс появления указанной подгруппы в информации
+     */
     public static Pair<SubGroup, Integer> findSubGroup(String info) {
         Matcher matcher = subGroupPattern.matcher(info);
 
@@ -275,6 +285,11 @@ public abstract class ScheduleParser {
         return new Pair<>(SubGroup.BOTH, -1);
     }
 
+    /**
+     * Ищет кабинеты проведения учебных пар
+     * @param info полная информация об учебной паре с преподавателем, кабинетом, подгруппой и т.д.
+     * @return Список классов С информации о каждом найденном кабинете
+     */
     public static List<Room> findRooms(String info) {
         List<Room> rooms = new ArrayList<>();
         int start = info.length();
@@ -292,11 +307,6 @@ public abstract class ScheduleParser {
             }
             rooms.add(new Room(found, isInSecondCampus, start));
         }
-
-//        boolean isPractice = switch (time) {
-//            case LEARNING_PRACTICE, PRODUCTION_PRACTICE, PRE_DIPLOMA_PRACTICE -> true;
-//            default -> false;
-//        };
 
         if (rooms.isEmpty() && !info.toLowerCase().contains("группа")) {
             rooms.add(new Room("Не указан", true, start));
