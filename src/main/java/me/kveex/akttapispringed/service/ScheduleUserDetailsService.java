@@ -1,0 +1,25 @@
+package me.kveex.akttapispringed.service;
+
+import lombok.RequiredArgsConstructor;
+import me.kveex.akttapispringed.domain.entity.user.User;
+import me.kveex.akttapispringed.repository.UserRepository;
+import me.kveex.akttapispringed.security.ScheduleUserDetails;
+import org.jspecify.annotations.NonNull;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
+@RequiredArgsConstructor
+@Service
+public class ScheduleUserDetailsService implements UserDetailsService {
+    private final UserRepository userRepository;
+
+    @Override
+    @NonNull
+    public UserDetails loadUserByUsername(@NonNull String login) throws UsernameNotFoundException {
+        User user = userRepository.findByLogin(login).orElseThrow(() -> new UsernameNotFoundException(login));
+
+        return new ScheduleUserDetails(user);
+    }
+}

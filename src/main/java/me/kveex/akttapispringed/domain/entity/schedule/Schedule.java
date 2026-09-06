@@ -1,4 +1,4 @@
-package me.kveex.akttapispringed.domain.entity;
+package me.kveex.akttapispringed.domain.entity.schedule;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,9 +18,10 @@ import java.util.List;
 @ToString
 public class Schedule {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "edit_timestamp", nullable = false)
+    @Column(name = "edit_timestamp", nullable = false, unique = true)
     private LocalDateTime editTimeStamp;
 
     @Column(name = "schedule_date", nullable = false)

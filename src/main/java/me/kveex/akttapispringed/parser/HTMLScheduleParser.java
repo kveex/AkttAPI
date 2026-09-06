@@ -1,12 +1,12 @@
-package me.kveex.akttapispringed.schedule.parser;
+package me.kveex.akttapispringed.parser;
 
+import lombok.extern.slf4j.Slf4j;
 import me.kveex.akttapispringed.service.ScheduleParserService;
+import me.kveex.akttapispringed.service.impl.ScheduleParserServiceImpl;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -21,8 +21,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Component
+@Slf4j
 public class HTMLScheduleParser implements IScheduleParser {
-    private static final Logger LOGGER = LoggerFactory.getLogger(HTMLScheduleParser.class);
     private Document document;
     private static final String URL = "https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html";
     private final ScheduleParserService scheduleParserService;
@@ -31,18 +31,18 @@ public class HTMLScheduleParser implements IScheduleParser {
         this.scheduleParserService = scheduleParserService;
     }
 
-    @Scheduled(fixedRate = 30, timeUnit = TimeUnit.MINUTES)
+    @Scheduled(fixedRate = 30, timeUnit = TimeUnit.MINUTES, initialDelay = 1)
     private void updateDocument() {
         Document newDocument = null;
         try {
             newDocument = Jsoup.connect(URL).get();
         }
         catch (ConnectException e) {
-            LOGGER.error("Ошибка подключения к сайту АКТТ! Проверьте подключение к интернету или настройки сети!");
+            log.error("Ошибка подключения к сайту АКТТ! Проверьте подключение к интернету или настройки сети!");
 
         }
         catch (IOException e) {
-            LOGGER.error("Документ HTML парсера не обновлён! Причина: {}", e.toString());
+            log.error("Документ HTML парсера не обновлён! Причина: {}", e.toString());
         }
         if (newDocument != null) document = newDocument;
         this.parse();
@@ -69,7 +69,7 @@ public class HTMLScheduleParser implements IScheduleParser {
                         OffsetDateTime offsetDateTime = OffsetDateTime.parse(contentValue);
                         return offsetDateTime.toLocalDateTime();
                     } catch (DateTimeParseException e) {
-                        LOGGER.warn("Не удалось распарсить дату изменения: {}", e.toString());
+                        log.warn("Не удалось распарсить дату изменения: {}", e.toString());
                         return null;
                     }
                 }
@@ -92,12 +92,12 @@ public class HTMLScheduleParser implements IScheduleParser {
     }
 
     @Override
-    public List<ScheduleParserService.Info> timeAndInfoForScheduleGroup() {
+    public List<ScheduleParserServiceImpl.Info> timeAndInfoForScheduleGroup() {
         Elements tables = this.document.select("table");
         if (tables.isEmpty()) return List.of();
         Element table = tables.getFirst();
 
-        return ScheduleParserService.getTimeAndInfoList(
+        return ScheduleParserServiceImpl.getTimeAndInfoList(
                 table.select("tr"),
                 row -> row.select("td").stream()
                         .map(Element::text)

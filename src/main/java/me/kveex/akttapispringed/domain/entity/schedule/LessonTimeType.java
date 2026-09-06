@@ -1,4 +1,4 @@
-package me.kveex.akttapispringed.domain.entity;
+package me.kveex.akttapispringed.domain.entity.schedule;
 
 public enum LessonTimeType {
     CUSTOM,
