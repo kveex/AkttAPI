@@ -29,7 +29,7 @@ public class PDFScheduleParser implements IScheduleParser {
         textStripper.setSortByPosition(true);
         try {
             String rawText = textStripper.getText(document);
-            log.debug(rawText);
+            log.info(rawText);
         } catch (IOException e) {
             log.error(e.getMessage());
         }

@@ -20,7 +20,7 @@ public class ScheduleUserDetails implements UserDetails {
     @Override
     @NonNull
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        return List.of(new SimpleGrantedAuthority("ROLE_USER"), new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_SCHEDULER"));
     }
 
     @Override
@@ -32,5 +32,9 @@ public class ScheduleUserDetails implements UserDetails {
     @NonNull
     public String getUsername() {
         return user.getLogin();
+    }
+
+    public Long getId() {
+        return user.getId();
     }
 }

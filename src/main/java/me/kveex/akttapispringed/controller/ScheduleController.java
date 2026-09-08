@@ -18,7 +18,7 @@ public class ScheduleController {
         this.scheduleParserService = scheduleParserService;
     }
 
-    @PostMapping
+    @PostMapping("/pdf")
     public ResponseEntity<String> loadPdf(@RequestParam("file") MultipartFile file) throws IOException {
             this.scheduleParserService.parsePdf(file.getBytes());
             return ResponseEntity.ok().build();
