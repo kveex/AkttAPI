@@ -1,5 +1,6 @@
 package me.kveex.akttapispringed.parser;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import me.kveex.akttapispringed.service.ScheduleParserService;
 import me.kveex.akttapispringed.service.impl.ScheduleParserServiceImpl;
@@ -22,14 +23,11 @@ import java.util.stream.Collectors;
 
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class HTMLScheduleParser implements IScheduleParser {
     private Document document;
     private static final String URL = "https://aktt.org/raspisaniya/izmenenie-v-raspisanii-dnevnogo-otdeleniya.html";
     private final ScheduleParserService scheduleParserService;
-
-    public HTMLScheduleParser(ScheduleParserService scheduleParserService) {
-        this.scheduleParserService = scheduleParserService;
-    }
 
     @Scheduled(fixedRate = 30, timeUnit = TimeUnit.MINUTES, initialDelay = 1)
     private void updateDocument() {
@@ -97,7 +95,7 @@ public class HTMLScheduleParser implements IScheduleParser {
         if (tables.isEmpty()) return List.of();
         Element table = tables.getFirst();
 
-        return ScheduleParserServiceImpl.getTimeAndInfoList(
+        return scheduleParserService.getTimeAndInfoList(
                 table.select("tr"),
                 row -> row.select("td").stream()
                         .map(Element::text)

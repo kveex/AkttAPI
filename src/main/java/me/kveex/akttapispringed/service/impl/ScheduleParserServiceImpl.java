@@ -11,14 +11,10 @@ import me.kveex.akttapispringed.repository.TeacherRepository;
 import me.kveex.akttapispringed.service.ScheduleParserService;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,13 +53,12 @@ public class ScheduleParserServiceImpl implements ScheduleParserService {
         this.lessonRepository = lessonRepository;
     }
 
-    public void parsePdf(byte[] bytes) throws IOException {
+    public void parsePdf(byte[] bytes) {
         PDFScheduleParser parser = new PDFScheduleParser(this, bytes);
         parser.parse();
     }
 
-    public static <T> List<Info> getTimeAndInfoList(Iterable<T> rows,
-                                                            Function<T, List<String>> rowToCells) {
+    public <T> List<Info> getTimeAndInfoList(Iterable<T> rows, Function<T, List<String>> rowToCells) {
         List<Info> infoList = new ArrayList<>();
 
         // Храним текущую группу отдельно для каждой из 3 колонок таблицы
